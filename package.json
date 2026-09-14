@@ -1,0 +1,26 @@
+{
+  "name": "sidequest",
+  "version": "1.0.0",
+  "description": "A social media platform for hobbyists to share projects, discover communities, and connect with people who enjoy the same side quests.",
+  "homepage": "https://github.com/allysonstauffer/sidequest#readme",
+  "bugs": {
+    "url": "https://github.com/allysonstauffer/sidequest/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/allysonstauffer/sidequest.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "prettier": "^3.9.6"
+  }
+}
