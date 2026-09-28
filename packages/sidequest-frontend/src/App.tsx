@@ -1,11 +1,23 @@
-import { useState } from 'react'
+import { createClient } from '@supabase/supabase-js'
 import heroImg from './assets/hero.png'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
 import './App.css'
 
+const supabaseUrl = 'https://kmlbggqcekkjbssejhlg.supabase.co'
+const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttbGJnZ3FjZWtramJzc2VqaGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5OTI1NTUsImV4cCI6MjEwNTU2ODU1NX0.L2DWt8s_fD0hA6Pv3K-dG5QPmxyoQqAUyFrgnKbDjuk'
+const supabase = createClient(supabaseUrl, supabaseAnonKey)
+
 function App() {
-  const [count, setCount] = useState(0)
+  
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+    })
+    if (error) {
+      console.error("Error logging in:", error.message)
+    }
+  }
 
   return (
     <>
@@ -16,17 +28,18 @@ function App() {
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
         <div>
-          <h1>Get started</h1>
+          <h1>Welcome to SideQuest</h1>
           <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
+            Sign in to start exploring hobbies and communities.
           </p>
         </div>
+        
         <button
           type="button"
           className="counter"
-          onClick={() => setCount((count) => count + 1)}
+          onClick={signInWithGoogle}
         >
-          Count is {count}
+          Sign in with Google
         </button>
       </section>
 
