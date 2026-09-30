@@ -21,9 +21,7 @@ function LoginPage() {
     const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
     setSignupNotice(
-      passCheck(password, confirmPassword)
-        ? 'Passwords match.'
-        : 'Passwords do not match.',
+      passCheck(password, confirmPassword)? 'Passwords match.' : 'Passwords do not match.',
     )
   }
 

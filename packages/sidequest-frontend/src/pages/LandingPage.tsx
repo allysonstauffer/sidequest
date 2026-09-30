@@ -4,7 +4,7 @@ function LandingPage() {
   return (
     <section className="site-page">
       <p className="site-eyebrow">SideQuest</p>
-      <h1>Make time for the things you love.</h1>
+      <h1>Want to share your hobbies to the world?</h1>
       <p>
         Share hobby projects, discover communities, and connect with people who
         enjoy the same side quests.

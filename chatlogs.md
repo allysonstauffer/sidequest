@@ -101,3 +101,15 @@ The dev server should be available at:
 
 http://localhost:5173/
 If you want, I can next make each destination page more unique and closer to its own Figma-style screen instead of keeping them as simplified content panels.
+
+
+make me a css for the site layout based on these color palletes and the inter font
+
+
+
+Updated [SiteLayout.css](/Users/luismendoza/Documents/class/csc-3100-proj/sidequest/packages/sidequest-frontend/src/components/SiteLayout.css) with:
+- Inter loaded via Google Fonts
+- Existing charcoal, slate, lavender, and soft-white palette standardized as CSS variables
+- Responsive header/navigation
+- Active-link underline and lavender login button
+- Polished forms, buttons, empty states, hover/focus states, and mobile layout
