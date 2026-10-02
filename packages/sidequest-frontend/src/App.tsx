@@ -66,12 +66,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           <div className="brand-row">
             <div className="brand-mark" aria-label="SideQuest logo">
               <div className="brand-graphic">
-                <img src={imgEllipse} alt="" className="brand-ellipse" />
-                <img src={imgEllipse1} alt="" className="brand-inner" />
-                <img src={imgLine} alt="" className="brand-line brand-line-a" />
-                <img src={imgLine1} alt="" className="brand-line brand-line-b" />
-                <span className="brand-letter brand-letter-s">S</span>
-                <span className="brand-letter brand-letter-q">Q</span>
+
               </div>
             </div>
             <div className="brand-name">SideQuest</div>
@@ -84,7 +79,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
                 to={to}
                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
               >
-                <img src={icon} alt="" className="nav-icon" />
+
                 <span>{label}</span>
                 {window.location.pathname === to && <img src={imgActiveMarker} alt="" className="active-marker" />}
               </NavLink>
@@ -94,7 +89,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
 
         <div className="sidebar-footer">
           <Link to="/share" className="cta-button">
-            <img src={imgIcon2} alt="" className="nav-icon" />
+
             <span>Share a side quest</span>
           </Link>
 
@@ -112,9 +107,10 @@ function HomePage() {
       <main className="feed">
         <header className="feed-header">
           <div className="greeting-wrap">
-            <h1>Your SideQuest feed</h1>
-            <img src={imgEllipse2} alt="" className="greeting-orb" />
-            <p>See what your creative circles are making.</p>
+            <h1>Good Afternoon, user
+            </h1>
+
+            <p>See what your community is making.</p>
           </div>
 
           <div className="header-actions" aria-label="Header actions">
@@ -138,32 +134,6 @@ function HomePage() {
 
         <p className="empty-state">No projects have been shared yet.</p>
       </main>
-
-      <aside className="rail">
-        <Link to="/search" className="search-bar">
-          <img src={imgIcon9} alt="" />
-          <span>Search projects, people, communities</span>
-        </Link>
-
-        <section className="rail-panel">
-          <div className="rail-header">
-            <h2>Your communities</h2>
-            <Link to="/community" className="link-button">View all</Link>
-          </div>
-
-          <p className="empty-state">You haven&apos;t joined any communities yet.</p>
-        </section>
-
-        <section className="makers-panel">
-          <h2>Makers to meet</h2>
-
-          <p className="empty-state">No maker suggestions are available yet.</p>
-        </section>
-
-        <div className="legal-links">
-          About · Community guidelines · Privacy
-        </div>
-      </aside>
     </DashboardLayout>
   )
 }
@@ -193,7 +163,7 @@ function SearchPage() {
 
   function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setNotice('Search is not connected yet.')
+    setNotice('barebones, no search yet.')
   }
 
   return (
@@ -242,7 +212,7 @@ function SettingsPage() {
           </div>
         </div>
 
-        <p className="empty-state">Settings will be available when your account is connected.</p>
+        <p className="empty-state">Settings will be available when we actually implement account creation.</p>
       </div>
     </DashboardLayout>
   )
@@ -252,8 +222,7 @@ function SharePage() {
   const [notice, setNotice] = useState('')
 
   function handlePublish(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    setNotice('Publishing is not connected yet.')
+
   }
 
   return (
@@ -272,6 +241,8 @@ function SharePage() {
             <input name="title" placeholder="Give your side quest a title" required />
           </label>
           <label className="field-group">
+            <span>Attachments</span>
+            <input type="file"></input>
             <span>What are you making?</span>
             <textarea name="description" placeholder="Share what you are making" required />
           </label>

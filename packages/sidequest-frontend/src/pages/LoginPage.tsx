@@ -1,16 +1,13 @@
 import { useState, type FormEvent } from 'react'
+import { useNavigate } from 'react-router-dom'
 
-
-//add supabase at some point
 function LoginPage() {
   const [signupNotice, setSignupNotice] = useState('')
-  const [notice, setNotice] = useState('')
+  const navigate = useNavigate()
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-  }
-  function passCheck(password: string, confirmPassword: string) {
-    return password === confirmPassword;
+    navigate('/feed')
   }
 
   function handleSignUp(event: FormEvent<HTMLFormElement>) {
@@ -20,9 +17,13 @@ function LoginPage() {
     const password = String(formData.get('password') ?? '')
     const confirmPassword = String(formData.get('confirmPassword') ?? '')
 
-    setSignupNotice(
-      passCheck(password, confirmPassword)? 'Passwords match.' : 'Passwords do not match.',
-    )
+    if (password !== confirmPassword) {
+      setSignupNotice('Passwords do not match.')
+      return
+    }
+
+    setSignupNotice('')
+    navigate('/feed')
   }
 
   return (
@@ -37,10 +38,9 @@ function LoginPage() {
         </label>
         <label>
           Password
-          <input name="password" type="password" autoComplete="new-password" required />
+          <input name="password" type="password" autoComplete="current-password" required />
         </label>
         <button type="submit" className="site-button site-button-primary">Continue</button>
-        {notice && <p className="site-notice" role="status">{notice}</p>}
       </form>
       <p>Don&apos;t have an account? Sign Up Today!</p>
       <form className = "site-form" onSubmit={handleSignUp}>
@@ -50,7 +50,7 @@ function LoginPage() {
         </label>
         <label>
           Password
-          <input name="password" type="password" autoComplete="current-password" required />
+          <input name="password" type="password" autoComplete="new-password" required />
         </label>
         <label>
             Confirm Password
