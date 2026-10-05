@@ -137,6 +137,10 @@ function DashboardLayout({
           <Link to="/share" className="cta-button">
             <span>Share a side quest</span>
           </Link>
+          
+          <Link to ="/profile" className="cta-button">
+            <span> Profile</span>
+          </Link>
           <LogoutButton />
         </div>
       </aside>
