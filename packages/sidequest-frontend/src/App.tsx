@@ -1,135 +1,145 @@
-import { createClient } from '@supabase/supabase-js'
+import React, { useEffect, useState } from 'react'
+import { supabase } from './supabaseClient'
+import Onboarding from './components/Onboarding'
 import heroImg from './assets/hero.png'
 import reactLogo from './assets/react.svg'
 import viteLogo from './assets/vite.svg'
+import type { Session } from '@supabase/supabase-js'
 import './App.css'
 
-const supabaseUrl = 'https://kmlbggqcekkjbssejhlg.supabase.co'
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImttbGJnZ3FjZWtramJzc2VqaGxnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODk5OTI1NTUsImV4cCI6MjEwNTU2ODU1NX0.L2DWt8s_fD0hA6Pv3K-dG5QPmxyoQqAUyFrgnKbDjuk'
-const supabase = createClient(supabaseUrl, supabaseAnonKey)
+export default function App() {
+  // State management
+  const [session, setSession] = useState<Session | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [hasProfile, setHasProfile] = useState(false)
 
-function App() {
-  
-  async function signInWithGoogle() {
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-    })
-    if (error) {
-      console.error("Error logging in:", error.message)
-    }
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
+  const [isSignUp, setIsSignUp] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [authLoading, setAuthLoading] = useState(false)
+
+  // Database check
+  async function checkProfile(userId: string) {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle()
+
+    if (data) setHasProfile(true)
+    else setHasProfile(false)
+    
+    setLoading(false)
   }
 
-  return (
-    <>
-      <section id="center">
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session)
+      if (session) checkProfile(session.user.id)
+      else setLoading(false)
+    })
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session)
+      if (session) {
+        checkProfile(session.user.id)
+      } else {
+        setHasProfile(false)
+        setLoading(false)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  // auth handlers
+  async function signInWithGoogle() {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' })
+    if (error) console.error("Error logging in with Google:", error.message)
+  }
+
+  async function handleEmailAuth(e: React.FormEvent) {
+    e.preventDefault()
+    setAuthError('')
+    setAuthLoading(true)
+
+    if (isSignUp) {
+      const { error } = await supabase.auth.signUp({ email, password })
+      if (error) setAuthError(error.message)
+    } else {
+      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      if (error) setAuthError(error.message)
+    }
+    
+    setAuthLoading(false)
+  }
+
+  if (loading) return <div>Loading...</div>
+
+  // Not logged in -> landing page with auth
+  if (!session) {
+    return (
+      <section id="center" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1.5rem' }}>
         <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
+          <img src={heroImg} className="base" width="170" height="179" alt="Hero" />
           <img src={reactLogo} className="framework" alt="React logo" />
           <img src={viteLogo} className="vite" alt="Vite logo" />
         </div>
+        
         <div>
           <h1>Welcome to SideQuest</h1>
-          <p>
-            Sign in to start exploring hobbies and communities.
-          </p>
+          <p>Sign in to start exploring hobbies and communities.</p>
         </div>
-        
-        <button
-          type="button"
-          className="counter"
-          onClick={signInWithGoogle}
-        >
+
+        <form onSubmit={handleEmailAuth} style={{ display: 'flex', flexDirection: 'column', gap: '1rem', width: '100%', maxWidth: '300px' }}>
+          {authError && <div style={{ color: 'red', fontSize: '0.9rem' }}>{authError}</div>}
+          
+          <input 
+            type="email" 
+            placeholder="Email address" 
+            value={email} 
+            onChange={(e) => setEmail(e.target.value)} 
+            required 
+            style={{ padding: '0.5rem' }}
+          />
+          <input 
+            type="password" 
+            placeholder="Password" 
+            value={password} 
+            onChange={(e) => setPassword(e.target.value)} 
+            required 
+            style={{ padding: '0.5rem' }}
+          />
+          
+          <button type="submit" disabled={authLoading}>
+            {authLoading ? 'Processing...' : (isSignUp ? 'Create Account' : 'Sign In with Email')}
+          </button>
+        </form>
+
+        <p style={{ fontSize: '0.9rem', cursor: 'pointer', textDecoration: 'underline' }} onClick={() => setIsSignUp(!isSignUp)}>
+          {isSignUp ? 'Already have an account? Sign In' : "Don't have an account? Sign Up"}
+        </p>
+
+        <hr style={{ width: '100%', maxWidth: '300px', opacity: 0.2 }} />
+
+        <button type="button" className="counter" onClick={signInWithGoogle} style={{ width: '100%', maxWidth: '300px' }}>
           Sign in with Google
         </button>
       </section>
+    )
+  }
 
-      <div className="ticks"></div>
+  // Logged in but missing data -> config
+  if (!hasProfile) {
+    return <Onboarding user={session.user} onComplete={() => setHasProfile(true)} />
+  }
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
+  // alr has profile -> main
+  return (
+    <div>
+      <h1>Welcome back to SideQuest!</h1>
+      <button onClick={() => supabase.auth.signOut()}>Sign Out</button>
+    </div>
   )
 }
-
-export default App
