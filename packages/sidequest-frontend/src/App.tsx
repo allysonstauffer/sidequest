@@ -11,21 +11,14 @@ import ProfilePage from './pages/ProfilePage'
 import SiteLayout from './components/SiteLayout'
 import './App.css'
 
-const imgEllipse = 'https://www.figma.com/api/mcp/asset/4d54c9f9-0723-4d3f-8946-0cffb5d687e0.svg'
-const imgEllipse1 = 'https://www.figma.com/api/mcp/asset/12fb24e1-28eb-482d-9de2-bbf80cf5bbc8.svg'
-const imgLine = 'https://www.figma.com/api/mcp/asset/5d68d311-2edc-4af4-8191-4a740b7155d2.svg'
-const imgLine1 = 'https://www.figma.com/api/mcp/asset/8daa9130-93cb-422a-a3a7-ae7d45efb732.svg'
 const imgIcon = 'https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg'
 const imgActiveMarker = 'https://www.figma.com/api/mcp/asset/bb150a0e-c82a-43ef-aba3-d0cf68c53b30.svg'
 const imgSearch = 'https://www.figma.com/api/mcp/asset/c21f9e9e-c1b2-4c06-8b6f-390958250661.svg'
 const imgIcon1 = 'https://www.figma.com/api/mcp/asset/21122cb5-fda7-4477-9594-f4926496ce65.svg'
 const imgTwoPeopleTalking = 'https://www.figma.com/api/mcp/asset/0eadaef5-3212-49d7-a00d-2c01ea5fefe5.svg'
 const imgSettings = 'https://www.figma.com/api/mcp/asset/5991e596-afae-449d-934e-f0307f52abf6.svg'
-const imgIcon2 = 'https://www.figma.com/api/mcp/asset/2d422ba9-9f09-49de-ab36-13d2b9dc1e35.svg'
-const imgEllipse2 = 'https://www.figma.com/api/mcp/asset/ab45314d-c3b2-4067-9e0b-72d32bd5be0d.svg'
 const imgIcon3 = 'https://www.figma.com/api/mcp/asset/528c07f3-fe9a-438d-ab72-05773043bd94.svg'
 const imgIcon4 = 'https://www.figma.com/api/mcp/asset/f5d983c7-1d55-4601-9522-1669591869c0.svg'
-const imgIcon9 = 'https://www.figma.com/api/mcp/asset/b066a2fb-cd1a-4cb4-bd53-2ee3acadda6e.svg'
 
 const navItems = [
   { label: 'Home', icon: imgIcon, to: '/feed' },
@@ -73,7 +66,7 @@ function DashboardLayout({ children }: { children: ReactNode }) {
           </div>
 
           <nav className="nav-list" aria-label="Primary navigation">
-            {navItems.map(({ label, icon, to }) => (
+            {navItems.map(({ label, to }) => (
               <NavLink
                 key={label}
                 to={to}
@@ -220,9 +213,44 @@ function SettingsPage() {
 
 function SharePage() {
   const [notice, setNotice] = useState('')
+  const [isUploading, setIsUploading] = useState(false)
 
-  function handlePublish(event: FormEvent<HTMLFormElement>) {
+  async function handlePublish(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const formData = new FormData(event.currentTarget)
+    const file = formData.get('attachment')
+    if (!(file instanceof File) || file.size === 0) {
+      setNotice('Choose an image to upload.')
+      return
+    }
 
+    setIsUploading(true)
+    setNotice('Uploading image...')
+    try {
+      const response = await fetch('/api/upload', {
+        method: 'POST',
+        body: formData,
+      })
+      if (!response.ok) {
+        const result = await response.json().catch(() => null)
+        throw new Error(
+          typeof result?.detail === 'string'
+            ? result.detail
+            : 'upload unavailable'
+        )
+      }
+      setNotice('image uploaded')
+    } catch (error) {
+      setNotice(
+        error instanceof TypeError
+          ? 'try again later'
+          : error instanceof Error
+            ? error.message
+            : 'try again later'
+      )
+    } finally {
+      setIsUploading(false)
+    }
   }
 
   return (
@@ -242,12 +270,15 @@ function SharePage() {
           </label>
           <label className="field-group">
             <span>Attachments</span>
-            <input type="file"></input>
+            <input type="file" name="attachment" accept="image/jpeg,image/png,image/webp" required />
+
             <span>What are you making?</span>
             <textarea name="description" placeholder="Share what you are making" required />
           </label>
           <div className="submit-row">
-            <button type="submit" className="primary-button">Publish</button>
+            <button type="submit" className="primary-button" disabled={isUploading}>
+              {isUploading ? 'Uploading...' : 'Upload image'}
+            </button>
           </div>
           {notice && <p className="empty-state" role="status">{notice}</p>}
         </form>
