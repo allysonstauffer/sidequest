@@ -11,6 +11,7 @@ import {
   TiltedGridHero,
   type TiltedGridImage
 } from "./TiltedGridHero";
+import { CommunityDiscovery } from "./CommunityDiscovery";
 import "./App.css";
 
 const hobbyImages: TiltedGridImage[] = [
@@ -163,6 +164,7 @@ function App() {
               love them.
             </h2>
           </div>
+          <CommunityDiscovery />
           <div className="feature-grid">
             <article className="feature-card feature-card-share">
               <div className="feature-card-copy">
