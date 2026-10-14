@@ -140,27 +140,6 @@
   overflow-x: clip;
 }
 
-.page-shortcuts {
-  display: flex;
-  justify-content: flex-end;
-  gap: 24px;
-  width: min(1240px, calc(100% - 64px));
-  min-height: 56px;
-  margin-inline: auto;
-  padding-top: 18px;
-}
-
-.page-shortcuts a {
-  color: var(--muted);
-  font-size: 13px;
-  font-weight: 600;
-  text-decoration: none;
-}
-
-.page-shortcuts a:hover {
-  color: var(--ink);
-}
-
 .mobile-navigation {
   display: none;
 }
@@ -285,12 +264,16 @@
 .image-caption {
   position: absolute;
   z-index: 1;
-  right: max(32px, calc((100vw - 1240px) / 2));
+  left: 50%;
   bottom: 20px;
+  width: max-content;
+  max-width: calc(100% - 32px);
   margin: 0;
   color: var(--ink);
   font-size: 12px;
   font-weight: 700;
+  text-align: center;
+  transform: translateX(-50%);
 }
 
 .discover-section {
@@ -468,12 +451,6 @@
     padding-bottom: 84px;
   }
 
-  .page-shortcuts {
-    justify-content: center;
-    gap: 20px;
-    width: calc(100% - 40px);
-  }
-
   .mobile-navigation {
     position: fixed;
     z-index: 20;
@@ -551,7 +528,6 @@
   }
 
   .image-caption {
-    right: 20px;
     bottom: 16px;
     font-size: 11px;
   }

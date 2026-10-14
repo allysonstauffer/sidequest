@@ -19,20 +19,20 @@ const hobbyImages: TiltedGridImage[] = [
     alt: "Colorful painting in progress"
   },
   {
-    src: "https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=85",
-    alt: "Handmade pottery on a work table"
+    src: "https://images.unsplash.com/photo-1624880357913-a8539238245b?auto=format&fit=crop&w=900&q=85",
+    alt: "Women playing soccer on a green field"
   },
   {
-    src: "https://images.unsplash.com/photo-1501004318641-b39e6451bec6?auto=format&fit=crop&w=900&q=85",
-    alt: "Green plants being cared for"
+    src: "https://images.unsplash.com/photo-1757085242652-f8cd4d3de889?auto=format&fit=crop&w=900&q=85",
+    alt: "People painting together during an art class"
   },
   {
     src: "https://images.unsplash.com/photo-1510915361894-db8b60106cb1?auto=format&fit=crop&w=900&q=85",
     alt: "Guitar ready to be played"
   },
   {
-    src: "https://images.unsplash.com/photo-1494438639946-1ebd1d20bf85?auto=format&fit=crop&w=900&q=85",
-    alt: "Books and a notebook for a creative project"
+    src: "https://images.unsplash.com/photo-1753164726310-9d9063454230?auto=format&fit=crop&w=900&q=85",
+    alt: "An experienced potter guiding a child at the pottery wheel"
   }
 ];
 
@@ -124,15 +124,6 @@ function App() {
         </button>
       </aside>
       <main className="page-content">
-        <nav
-          className="page-shortcuts"
-          aria-label="Page sections">
-          <a href="#why-sidequest">Why SideQuest</a>
-          <a href="#discover">
-            Explore <span aria-hidden="true">↗</span>
-          </a>
-        </nav>
-
         <section className="home-hero" id="home">
           <TiltedGridHero
             className="hero-scene"
@@ -144,7 +135,7 @@ function App() {
             fade={13}>
             <div className="hero-copy">
               <p className="eyebrow">
-                <span /> A social space for your side quests
+                A social space for your side quests
               </p>
               <h1>
                 Make room for your next <em>side quest.</em>
@@ -200,8 +191,8 @@ function App() {
             <article className="feature-card feature-card-discover">
               <img
                 className="feature-card-image"
-                src="https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?auto=format&fit=crop&w=900&q=85"
-                alt="Handmade pottery on a work table"
+                src="https://images.unsplash.com/photo-1757085242652-f8cd4d3de889?auto=format&fit=crop&w=900&q=85"
+                alt="People painting together during an art class"
                 loading="lazy"
               />
               <div className="feature-card-copy">
