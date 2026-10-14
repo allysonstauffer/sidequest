@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import {
   House,
+  LogIn,
   MessageCircle,
-  Plus,
   Search,
   Settings,
   UsersRound
@@ -115,12 +115,9 @@ function App() {
             <span>Settings</span>
           </button>
         </nav>
-        <button
-          className="share-sidequest"
-          type="button"
-          disabled>
-          <Plus aria-hidden="true" />
-          <span>Share a Side Quest</span>
+        <button className="login-button" type="button" disabled>
+          <LogIn aria-hidden="true" />
+          <span>Log In</span>
         </button>
       </aside>
       <main className="page-content">

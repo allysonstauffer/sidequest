@@ -107,7 +107,7 @@
   opacity: 0.48;
 }
 
-.share-sidequest {
+.login-button {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -125,12 +125,12 @@
   font-weight: 700;
 }
 
-.share-sidequest svg {
+.login-button svg {
   width: 18px;
   height: 18px;
 }
 
-.share-sidequest:disabled {
+.login-button:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
