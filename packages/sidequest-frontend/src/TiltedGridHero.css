@@ -1,0 +1,43 @@
+.tilted-grid-hero {
+  position: relative;
+  overflow: hidden;
+}
+
+.tgh-band {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity 500ms ease;
+}
+
+.tgh-tile {
+  position: absolute;
+}
+
+.tgh-slice {
+  position: absolute;
+  top: 0;
+  overflow: hidden;
+  background: #dcebdc;
+}
+
+.tgh-slice-first {
+  border-radius: 8px 0 0 8px;
+}
+
+.tgh-slice-last {
+  border-radius: 0 8px 8px 0;
+}
+
+.tgh-image {
+  position: absolute;
+  top: 0;
+  max-width: none;
+  object-fit: cover;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tgh-band {
+    transition: none;
+  }
+}
