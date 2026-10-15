@@ -7,10 +7,12 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:auth": "node tests/auth.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
+    "browser-image-compression": "^2.0.2",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router-dom": "^7.18.4"

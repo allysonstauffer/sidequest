@@ -1,67 +1,180 @@
-import { useState, type FormEvent } from 'react'
-import { useNavigate } from 'react-router-dom'
+import type { FormEvent } from "react";
+import { Link, Navigate } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
+import type { AuthService } from "../auth/authService";
+import { supabaseAuthService } from "../auth/supabaseAuthService";
+import { useAuthForms } from "../auth/useAuthForms";
 
-function LoginPage() {
-  const [signupNotice, setSignupNotice] = useState('')
-  const navigate = useNavigate()
+export default function LoginPage({
+  authService = supabaseAuthService
+}: {
+  authService?: AuthService;
+}) {
+  const { session, loading } = useAuth();
+  const {
+    pendingAction,
+    loginNotice,
+    signupNotice,
+    confirmation,
+    resendNotice,
+    signIn,
+    signUp,
+    resendConfirmation,
+    changeEmail
+  } = useAuthForms(authService);
+  const busy = pendingAction !== null;
 
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-    navigate('/feed')
+  async function handleSubmit(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    await signIn({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? "")
+    });
   }
 
-  function handleSignUp(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault()
-
-    const formData = new FormData(event.currentTarget)
-    const password = String(formData.get('password') ?? '')
-    const confirmPassword = String(formData.get('confirmPassword') ?? '')
-
-    if (password !== confirmPassword) {
-      setSignupNotice('Passwords do not match.')
-      return
-    }
-
-    setSignupNotice('')
-    navigate('/feed')
+  async function handleSignUp(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    await signUp({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
+      confirmPassword: String(form.get("confirmPassword") ?? "")
+    });
   }
 
+  if (loading) return <p role="status">Loading…</p>;
+  if (session) return <Navigate to="/feed" replace />;
   return (
     <section className="site-page">
       <p className="site-eyebrow">Welcome!</p>
       <h1>Log in</h1>
-
-      <form className="site-form" onSubmit={handleSubmit}>
-        <label>
-          Email
-          <input name="email" type="email" autoComplete="email" required />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" autoComplete="current-password" required />
-        </label>
-        <button type="submit" className="site-button site-button-primary">Continue</button>
+      <form
+        className="site-form"
+        onSubmit={handleSubmit}
+        aria-busy={pendingAction === "signin"}
+        aria-label="Log in">
+        <fieldset disabled={busy}>
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              onChange={() => changeEmail("signin")}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className="site-button site-button-primary">
+            {pendingAction === "signin"
+              ? "Logging in…"
+              : "Log in"}
+          </button>
+        </fieldset>
+        {loginNotice && (
+          <p className="site-notice" role="status">
+            {loginNotice}
+          </p>
+        )}
       </form>
-      <p>Don&apos;t have an account? Sign Up Today!</p>
-      <form className = "site-form" onSubmit={handleSignUp}>
-         <label>
-          Email
-          <input name="email" type="email" autoComplete="email" required />
-        </label>
-        <label>
-          Password
-          <input name="password" type="password" autoComplete="new-password" required />
-        </label>
-        <label>
-            Confirm Password
-            <input name="confirmPassword" type="password" autoComplete="new-password" required />
-        </label>
-
-        <button type="submit" className="site-button site-button-primary">Continue</button>
-        {signupNotice && <p className="site-notice" role="status">{signupNotice}</p>}
+      <p>
+        <Link to="/forgot-password" className="site-text-link">
+          Forgot password?
+        </Link>
+      </p>
+      <h2>Create an account</h2>
+      <form
+        className="site-form"
+        onSubmit={handleSignUp}
+        aria-busy={pendingAction === "signup"}
+        aria-label="Sign up">
+        <fieldset disabled={busy}>
+          <label>
+            Email
+            <input
+              name="email"
+              type="email"
+              autoComplete="email"
+              onChange={() => changeEmail("signup")}
+              required
+            />
+          </label>
+          <label>
+            Password
+            <input
+              name="password"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              required
+            />
+          </label>
+          <label>
+            Confirm password
+            <input
+              name="confirmPassword"
+              type="password"
+              autoComplete="new-password"
+              minLength={6}
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className="site-button site-button-primary">
+            {pendingAction === "signup"
+              ? "Creating account…"
+              : "Sign up"}
+          </button>
+        </fieldset>
+        {signupNotice && (
+          <p className="site-notice" role="status">
+            {signupNotice}
+          </p>
+        )}
       </form>
+      {confirmation && (
+        <div
+          className="site-form"
+          aria-label="Email confirmation">
+          <p>
+            Awaiting email confirmation for{" "}
+            <strong>{confirmation.email}</strong>.
+          </p>
+          <button
+            type="button"
+            className="site-button"
+            disabled={busy}
+            aria-busy={pendingAction === "resend"}
+            onClick={resendConfirmation}>
+            {pendingAction === "resend"
+              ? "Sending…"
+              : confirmation.requested
+                ? "Resend confirmation email"
+                : "Send confirmation email"}
+          </button>
+          {resendNotice && (
+            <p className="site-notice" role="status">
+              {resendNotice}
+            </p>
+          )}
+        </div>
+      )}
     </section>
-  )
+  );
 }
-
-export default LoginPage

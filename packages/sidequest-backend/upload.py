@@ -24,7 +24,7 @@ def upload(attachment):
     # if analyze.last_analysis_stats.getKey("suspicious")>0:
     #     raise HTTPException(status_code=100, detail="malicious file detected")
     original = attachment.file.read(MAX_UPLOAD_BYTES + 1)
-    
+
     if len(original) > MAX_UPLOAD_BYTES:
         raise HTTPException(status_code=413, detail="image too large")
 
