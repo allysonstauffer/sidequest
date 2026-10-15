@@ -137,8 +137,8 @@ function DashboardLayout({
           <Link to="/share" className="cta-button">
             <span>Share a side quest</span>
           </Link>
-          
-          <Link to ="/profile" className="cta-button">
+
+          <Link to="/profile" className="cta-button">
             <span> Profile</span>
           </Link>
           <LogoutButton />
@@ -294,10 +294,46 @@ function SettingsPage() {
 
 function SharePage() {
   const [notice, setNotice] = useState("");
+  const [isUploading, setIsUploading] = useState(false);
 
-  function handlePublish(event: FormEvent<HTMLFormElement>) {
+  async function handlePublish(
+    event: FormEvent<HTMLFormElement>
+  ) {
     event.preventDefault();
-    setNotice("Project publishing is not available yet.");
+    const formData = new FormData(event.currentTarget);
+    const file = formData.get("attachment");
+    if (!(file instanceof File) || file.size === 0) {
+      setNotice("Choose an image to upload.");
+      return;
+    }
+
+    setIsUploading(true);
+    setNotice("Uploading image...");
+    try {
+      const response = await fetch("/api/upload", {
+        method: "POST",
+        body: formData
+      });
+      if (!response.ok) {
+        const result = await response.json().catch(() => null);
+        throw new Error(
+          typeof result?.detail === "string"
+            ? result.detail
+            : "upload unavailable"
+        );
+      }
+      setNotice("image uploaded");
+    } catch (error) {
+      setNotice(
+        error instanceof TypeError
+          ? "try again later"
+          : error instanceof Error
+            ? error.message
+            : "try again later"
+      );
+    } finally {
+      setIsUploading(false);
+    }
   }
 
   return (
@@ -321,7 +357,13 @@ function SharePage() {
           </label>
           <label className="field-group">
             <span>Attachments</span>
-            <input type="file"></input>
+            <input
+              type="file"
+              name="attachment"
+              accept="image/jpeg,image/png,image/webp"
+              required
+            />
+
             <span>What are you making?</span>
             <textarea
               name="description"
@@ -330,8 +372,11 @@ function SharePage() {
             />
           </label>
           <div className="submit-row">
-            <button type="submit" className="primary-button">
-              Publish
+            <button
+              type="submit"
+              className="primary-button"
+              disabled={isUploading}>
+              {isUploading ? "Uploading..." : "Upload image"}
             </button>
           </div>
           {notice && (
