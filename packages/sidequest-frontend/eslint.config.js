@@ -38,5 +38,10 @@ export default [
       ],
       "react/prop-types": "off"
     }
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    // The TypeScript rule understands parameter names in interface signatures.
+    rules: { "no-unused-vars": "off" }
   }
 ];

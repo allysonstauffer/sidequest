@@ -97,8 +97,7 @@ password table is needed.
 
 ### Local configuration
 
-Set these in `packages/sidequest-frontend/.env` (see
-`.env.example`):
+Set these in `packages/sidequest-frontend/.env`:
 
 ```env
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
@@ -119,6 +118,7 @@ In your Supabase dashboard:
    - `http://localhost:5173/reset-password`
 
    #TODO
+
 4. Configure custom SMTP to send confirmation and recovery
    emails outside your project team. The default Supabase mail
    service limits recipients and volume.
@@ -172,3 +172,47 @@ Database features remain placeholders. Before adding private
 profile, project, or message tables, enforce access with
 Supabase Row Level Security policies. The frontend route guard
 alone does not restrict database access.
+
+### Login and signup workflow
+
+`LoginPage` renders the forms and passes an `AuthService` to
+`useAuthForms`. The hook owns validation, notices, the active
+request, and the email awaiting confirmation. The Supabase
+adapter in `src/auth/supabaseAuthService.ts` translates SDK
+responses into application outcomes. `AuthProvider` continues to
+manage the session and successful authentication redirects to
+`/feed`.
+
+Only the active action shows a loading label. Both forms are
+disabled while a request is pending, and a request lock also
+prevents submissions before the disabled state has rendered.
+
+Existing confirmed accounts display an explicit message when
+Supabase returns a duplicate error or its current sanitized
+duplicate response (an explicitly empty identity list and an
+empty role). That response shape is an implementation detail of
+[Supabase Auth's signup endpoint](https://github.com/supabase/auth/blob/master/internal/api/signup.go),
+so the adapter keeps unfamiliar responses neutral rather than
+claiming an account exists or an email was sent. Invited users
+with a real role are handled separately. Verify these outcomes
+against your project's auth configuration after provider
+updates.
+
+Resend appears inline after a signup response establishes
+pending confirmation and a confirmation request. An unconfirmed
+login alone does not establish that email was sent, so it first
+offers "Send confirmation email"; only an accepted request
+changes that action to "Resend confirmation email". The action
+uses the submitted email, clears when that form's email changes,
+and reports its own loading and errors. A successful request
+means the provider accepted the request, not that the email
+reached the inbox. Confirmation state lasts for the current page
+visit; after a refresh, logging in with an unconfirmed account
+offers the initial send action again. Older
+`/resend-confirmation` links return to `/login`.
+
+Repeated signup for an existing unconfirmed account can request
+another confirmation email; it does not replace that account's
+original password. The existing-account message deliberately
+reveals account existence as part of this UX. No public user
+lookup or privileged browser credential is used.

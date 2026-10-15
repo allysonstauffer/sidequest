@@ -1,34 +1,38 @@
-import { useState, type FormEvent } from "react";
+import type { FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
 import { useAuth } from "../auth/useAuth";
-import { getAuthLinkError } from "../auth/authLinkError";
+import type { AuthService } from "../auth/authService";
+import { supabaseAuthService } from "../auth/supabaseAuthService";
+import { useAuthForms } from "../auth/useAuthForms";
 
-export default function LoginPage() {
+export default function LoginPage({
+  authService = supabaseAuthService
+}: {
+  authService?: AuthService;
+}) {
   const { session, loading } = useAuth();
-  const [loginNotice, setLoginNotice] =
-    useState(getAuthLinkError);
-  const [signupNotice, setSignupNotice] = useState("");
-  const [busy, setBusy] = useState(false);
+  const {
+    pendingAction,
+    loginNotice,
+    signupNotice,
+    confirmation,
+    resendNotice,
+    signIn,
+    signUp,
+    resendConfirmation,
+    changeEmail
+  } = useAuthForms(authService);
+  const busy = pendingAction !== null;
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    setLoginNotice("");
-    setBusy(true);
-    try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: String(form.get("email") ?? "").trim(),
-        password: String(form.get("password") ?? "")
-      });
-      if (error) setLoginNotice(error.message);
-    } catch {
-      setLoginNotice("Unable to log in. Please try again.");
-    } finally {
-      setBusy(false);
-    }
+    await signIn({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? "")
+    });
   }
 
   async function handleSignUp(
@@ -36,33 +40,11 @@ export default function LoginPage() {
   ) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    const password = String(form.get("password") ?? "");
-    setSignupNotice("");
-    if (
-      password !== String(form.get("confirmPassword") ?? "")
-    ) {
-      setSignupNotice("Passwords do not match.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email: String(form.get("email") ?? "").trim(),
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/login`
-        }
-      });
-      if (error) setSignupNotice(error.message);
-      else if (!data.session)
-        setSignupNotice(
-          "Check your email for a confirmation link. If you already have an account, log in instead."
-        );
-    } catch {
-      setSignupNotice("Unable to sign up. Please try again.");
-    } finally {
-      setBusy(false);
-    }
+    await signUp({
+      email: String(form.get("email") ?? ""),
+      password: String(form.get("password") ?? ""),
+      confirmPassword: String(form.get("confirmPassword") ?? "")
+    });
   }
 
   if (loading) return <p role="status">Loading…</p>;
@@ -74,6 +56,7 @@ export default function LoginPage() {
       <form
         className="site-form"
         onSubmit={handleSubmit}
+        aria-busy={pendingAction === "signin"}
         aria-label="Log in">
         <fieldset disabled={busy}>
           <label>
@@ -82,6 +65,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               autoComplete="email"
+              onChange={() => changeEmail("signin")}
               required
             />
           </label>
@@ -97,7 +81,9 @@ export default function LoginPage() {
           <button
             type="submit"
             className="site-button site-button-primary">
-            {busy ? "Please wait…" : "Log in"}
+            {pendingAction === "signin"
+              ? "Logging in…"
+              : "Log in"}
           </button>
         </fieldset>
         {loginNotice && (
@@ -111,17 +97,11 @@ export default function LoginPage() {
           Forgot password?
         </Link>
       </p>
-      <p>
-        <Link
-          to="/resend-confirmation"
-          className="site-text-link">
-          Resend confirmation email
-        </Link>
-      </p>
       <h2>Create an account</h2>
       <form
         className="site-form"
         onSubmit={handleSignUp}
+        aria-busy={pendingAction === "signup"}
         aria-label="Sign up">
         <fieldset disabled={busy}>
           <label>
@@ -130,6 +110,7 @@ export default function LoginPage() {
               name="email"
               type="email"
               autoComplete="email"
+              onChange={() => changeEmail("signup")}
               required
             />
           </label>
@@ -156,7 +137,9 @@ export default function LoginPage() {
           <button
             type="submit"
             className="site-button site-button-primary">
-            {busy ? "Please wait…" : "Sign up"}
+            {pendingAction === "signup"
+              ? "Creating account…"
+              : "Sign up"}
           </button>
         </fieldset>
         {signupNotice && (
@@ -165,6 +148,33 @@ export default function LoginPage() {
           </p>
         )}
       </form>
+      {confirmation && (
+        <div
+          className="site-form"
+          aria-label="Email confirmation">
+          <p>
+            Awaiting email confirmation for{" "}
+            <strong>{confirmation.email}</strong>.
+          </p>
+          <button
+            type="button"
+            className="site-button"
+            disabled={busy}
+            aria-busy={pendingAction === "resend"}
+            onClick={resendConfirmation}>
+            {pendingAction === "resend"
+              ? "Sending…"
+              : confirmation.requested
+                ? "Resend confirmation email"
+                : "Send confirmation email"}
+          </button>
+          {resendNotice && (
+            <p className="site-notice" role="status">
+              {resendNotice}
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }
