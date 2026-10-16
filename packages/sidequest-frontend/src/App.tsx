@@ -6,7 +6,8 @@ import {
   Link,
   NavLink,
   Route,
-  Routes
+  Routes,
+  useNavigate
 } from "react-router-dom";
 import type { ReactNode } from "react";
 import { useState, type FormEvent } from "react";
@@ -21,6 +22,8 @@ import LogoutButton from "./components/LogoutButton";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
+import ProjectFeed from "./components/ProjectFeed";
+import { useAuth } from "./auth/useAuth";
 
 const imgIcon =
   "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
@@ -192,9 +195,7 @@ function HomePage() {
           </p>
         </section>
 
-        <p className="empty-state">
-          No projects have been shared yet.
-        </p>
+        <ProjectFeed />
       </main>
     </DashboardLayout>
   );
@@ -295,6 +296,8 @@ function SettingsPage() {
 function SharePage() {
   const [notice, setNotice] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const { session } = useAuth();
+  const navigate = useNavigate();
 
   async function handlePublish(
     event: FormEvent<HTMLFormElement>
@@ -303,15 +306,20 @@ function SharePage() {
     const formData = new FormData(event.currentTarget);
     const file = formData.get("attachment");
     if (!(file instanceof File) || file.size === 0) {
-      setNotice("Choose an image to upload.");
+      setNotice("upload image.");
+      return;
+    }
+    if (!session) {
+      setNotice("sign in.");
       return;
     }
 
     setIsUploading(true);
-    setNotice("Uploading image...");
+    setNotice("uploading");
     try {
       const response = await fetch("/api/upload", {
         method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
         body: formData
       });
       if (!response.ok) {
@@ -322,7 +330,7 @@ function SharePage() {
             : "upload unavailable"
         );
       }
-      setNotice("image uploaded");
+      navigate("/feed");
     } catch (error) {
       setNotice(
         error instanceof TypeError
@@ -352,6 +360,7 @@ function SharePage() {
             <input
               name="title"
               placeholder="Give your side quest a title"
+              maxLength={200}
               required
             />
           </label>
@@ -376,7 +385,7 @@ function SharePage() {
               type="submit"
               className="primary-button"
               disabled={isUploading}>
-              {isUploading ? "Uploading..." : "Upload image"}
+              {isUploading ? "uploading" : "upload"}
             </button>
           </div>
           {notice && (

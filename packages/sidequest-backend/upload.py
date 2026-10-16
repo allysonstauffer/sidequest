@@ -1,39 +1,63 @@
 import io
+import logging
 import os
-import vt
 from pathlib import Path
-from uuid import uuid4
-from fastapi import FastAPI, File, UploadFile, HTTPException
-from PIL import Image, ImageOps, UnidentifiedImageError
+from urllib.parse import unquote, urlparse
+from uuid import UUID, uuid4
+
 from dotenv import load_dotenv
+from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from PIL import Image, ImageOps, UnidentifiedImageError
 from supabase import create_client
 
 load_dotenv(Path(__file__).with_name(".env"))
 
 app = FastAPI()
-client = vt.Client(os.getenv("VIRUSTOTAL_API_KEY"))
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 25_000_000
-#still need to check file for malware
+
 
 @app.post("/api/upload")
-def upload(attachment):
-    #supposed to be file checking but dont work so thats a later issue
-    # with open(attachment,"rb") as f:
-    #     analyze = client.scan_file(f)
-    # if analyze.last_analysis_stats.getKey("suspicious")>0:
-    #     raise HTTPException(status_code=100, detail="malicious file detected")
-    original = attachment.file.read(MAX_UPLOAD_BYTES + 1)
+def upload(
+    attachment: UploadFile = File(...),
+    title: str = Form(...),
+    description: str = Form(""),
+    authorization: str | None = Header(default=None),
+):
+    title = title.strip()
+    description = description.strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="err: must be 1 to 200 characters.")
 
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="sign in")
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="sign in")
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=503, detail="")
+
+    supabase = create_client(url, key)
+    try:
+        user = supabase.auth.get_user(token).user
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="sign in") from exc
+    if not user:
+        raise HTTPException(status_code=401, detail="sign in")
+
+    original = attachment.file.read(MAX_UPLOAD_BYTES + 1)
     if len(original) > MAX_UPLOAD_BYTES:
-        raise HTTPException(status_code=413, detail="image too large")
+        raise HTTPException(status_code=413, detail="image file toooo large")
 
     try:
         with Image.open(io.BytesIO(original)) as source:
             if source.format not in {"JPEG", "PNG", "WEBP"}:
-                raise HTTPException(status_code=400, detail="image only")
+                raise HTTPException(status_code=400, detail="choose the right type of image")
             if source.width * source.height > Image.MAX_IMAGE_PIXELS:
-                raise HTTPException(status_code=413, detail="image size too large")
+                raise HTTPException(status_code=413, detail="image toooo large")
             image = ImageOps.exif_transpose(source)
 
         image.thumbnail((1920, 1080))
@@ -43,19 +67,111 @@ def upload(attachment):
 
         output = io.BytesIO()
         image.convert("RGB").save(output, format="JPEG", quality=80, optimize=True)
-    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError):
-        raise HTTPException(status_code=400, detail="nope")
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=400, detail="this is NOT an image") from exc
 
+    bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
+    path = f"images/{user.id}/{uuid4().hex}.jpg"
+    storage = supabase.storage.from_(bucket)
+    try:
+        storage.upload(
+            path=path,
+            file=output.getvalue(),
+            file_options={"content-type": "image/jpeg"},
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="didnt upload") from exc
+
+    public_url = storage.get_public_url(path)
+    try:
+        result = supabase.table("projects").insert(
+            {
+                "author_id": str(user.id),
+                "title": title,
+                "description": description or None,
+                "media_urls": [public_url],
+            }
+        ).execute()
+        if not result.data:
+            raise RuntimeError("nope")
+    except Exception as exc:
+        try:
+            storage.remove([path])
+        except Exception:
+            pass
+        raise HTTPException(status_code=502, detail="cant save") from exc
+
+    return {"project": result.data[0]}
+
+
+@app.delete("/api/upload")
+def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="sign in!")
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="sign in!")
     url = os.getenv("SUPABASE_URL")
     key = os.getenv("SUPABASE_SECRET_KEY")
     if not url or not key:
-        raise HTTPException(status_code=503, detail="fix supabase")
+        raise HTTPException(status_code=503, detail="Project deletion is not configured.")
 
-    path = f"images/{uuid4().hex}.jpg"
     supabase = create_client(url, key)
-    supabase.storage.from_(os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")).upload(
-        path=path,
-        file=output.getvalue(),
-        file_options={"content-type": "image/jpeg"},
-    )
-    return {"path": path, "original_bytes": len(original), "stored_bytes": output.tell()}
+    try:
+        user = supabase.auth.get_user(token).user
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="sign in again.") from exc
+    if not user:
+        raise HTTPException(status_code=401, detail="sign in again.")
+    try:
+        rows = (
+            supabase.table("projects")
+            .select("id,author_id,media_urls")
+            .eq("id", str(id))
+            .limit(1)
+            .execute()
+            .data
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Could not find post.") from exc
+
+    if not rows or rows[0]["author_id"] != str(user.id):
+        raise HTTPException(status_code=404, detail="Post not found.")
+
+    project = rows[0]
+    try:
+        result = (
+            supabase.table("projects")
+            .delete()
+            .eq("id", str(id))
+            .eq("author_id", str(user.id))
+            .select("id")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Post not found.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Could not delete post.") from exc
+
+    bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
+    prefix = f"/storage/v1/object/public/{bucket}/"
+    owner_prefix = f"images/{user.id}/"
+    storage_paths = []
+    for media_url in project.get("media_urls") or []:
+        parsed = urlparse(media_url)
+        path = unquote(parsed.path)
+        if parsed.netloc == urlparse(url).netloc and path.startswith(prefix):
+            object_path = path[len(prefix):]
+            if object_path.startswith(owner_prefix):
+                storage_paths.append(object_path)
+
+    if storage_paths:
+        try:
+            supabase.storage.from_(bucket).remove(storage_paths)
+        except Exception:
+            logging.exception("Post %s was deleted, but image cleanup failed", id)
+            return {"deleted": True, "media_cleanup": False}
+
+    return {"deleted": True, "media_cleanup": True}

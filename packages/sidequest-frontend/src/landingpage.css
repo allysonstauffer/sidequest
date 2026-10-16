@@ -16,6 +16,24 @@
   color: var(--ink);
 }
 
+.landing-shell .landing-projects {
+  padding: 48px max(24px, calc((100vw - 1360px) / 2));
+  background: var(--paper);
+}
+
+.landing-shell .project-feed {
+  color: var(--ink);
+}
+
+.landing-shell .project-feed-card {
+  background: #fff;
+  border-color: var(--line);
+}
+
+.landing-shell .project-feed-copy time {
+  color: var(--muted);
+}
+
 .landing-shell .desktop-sidebar {
   position: sticky;
   top: 0;

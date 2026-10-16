@@ -3,6 +3,7 @@ import {
   type TiltedGridImage
 } from "./TiltedGridHero";
 import { CommunityDiscovery } from "./CommunityDiscovery";
+import ProjectFeed from "../components/ProjectFeed";
 import "../landingpage.css";
 
 const hobbyImages: TiltedGridImage[] = [
@@ -133,6 +134,10 @@ export default function LandingPage() {
             />
           </article>
         </div>
+      </section>
+
+      <section className="landing-projects" aria-label="Community projects">
+        <ProjectFeed />
       </section>
     </div>
   );

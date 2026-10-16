@@ -1,0 +1,71 @@
+.project-feed {
+  width: 100%;
+  max-width: 1100px;
+  margin: 0 auto;
+  color: #d8d8f6;
+}
+
+.project-feed h2 {
+  margin: 0 0 18px;
+  font-size: 24px;
+}
+
+.project-feed-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 20px;
+}
+
+.project-feed-card {
+  overflow: hidden;
+  border: 1px solid rgba(231, 229, 228, 0.5);
+  border-radius: 16px;
+  background: #494850;
+}
+
+.project-feed-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.project-feed-copy {
+  padding: 16px;
+}
+
+.project-feed-copy h3 {
+  margin: 0 0 8px;
+  font-size: 18px;
+}
+
+.project-feed-copy p {
+  margin: 0 0 12px;
+  white-space: pre-wrap;
+}
+
+.project-feed-copy time {
+  color: #c4b4cf;
+  font-size: 13px;
+}
+
+.project-delete-button {
+  display: block;
+  margin-top: 14px;
+  padding: 8px 12px;
+  border: 1px solid #f08f8f;
+  border-radius: 8px;
+  background: transparent;
+  color: #ffd0d0;
+  font: inherit;
+  cursor: pointer;
+}
+
+.project-delete-button:hover {
+  background: rgba(240, 143, 143, 0.15);
+}
+
+.project-delete-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
