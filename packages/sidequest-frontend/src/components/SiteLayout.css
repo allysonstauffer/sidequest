@@ -320,3 +320,31 @@
 .site-nav .logout-control {
   margin-top: 0;
 }
+
+.hobby-option {
+  display: grid;
+  gap: 8px;
+}
+
+.site-form .hobby-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-form input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--sq-accent);
+}
+
+.site-form select {
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--sq-border);
+  border-radius: 10px;
+  background: var(--sq-background);
+  color: var(--sq-text);
+}

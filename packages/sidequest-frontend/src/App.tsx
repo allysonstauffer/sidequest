@@ -22,6 +22,9 @@ import LogoutButton from "./components/LogoutButton";
 import ForgotPasswordPage from "./pages/ForgotPasswordPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import RequireOnboarding from "./components/RequireOnboarding";
+import Recommendations from "./components/Recommendations";
 import ProjectFeed from "./components/ProjectFeed";
 import { useAuth } from "./auth/useAuth";
 
@@ -75,20 +78,28 @@ function App() {
             element={<ResetPasswordPage />}
           />
           <Route element={<RequireAuth />}>
-            <Route path="profile" element={<ProfilePage />} />
+            <Route
+              path="onboarding"
+              element={<OnboardingPage />}
+            />
+            <Route element={<RequireOnboarding />}>
+              <Route path="profile" element={<ProfilePage />} />
+            </Route>
           </Route>
         </Route>
         <Route element={<RequireAuth />}>
-          <Route path="/feed" element={<HomePage />} />
-          <Route
-            path="/community"
-            element={<CommunityPage />}
-          />
-          <Route path="/search" element={<SearchPage />} />
-          <Route path="/messages" element={<MessagesPage />} />
-          <Route path="/settings" element={<SettingsPage />} />
-          <Route path="/share" element={<SharePage />} />
-          <Route path="/browse" element={<BrowsePage />} />
+          <Route element={<RequireOnboarding />}>
+            <Route path="/feed" element={<HomePage />} />
+            <Route
+              path="/community"
+              element={<CommunityPage />}
+            />
+            <Route path="/search" element={<SearchPage />} />
+            <Route path="/messages" element={<MessagesPage />} />
+            <Route path="/settings" element={<SettingsPage />} />
+            <Route path="/share" element={<SharePage />} />
+            <Route path="/browse" element={<BrowsePage />} />
+          </Route>
         </Route>
       </Routes>
     </BrowserRouter>
@@ -190,9 +201,7 @@ function HomePage() {
             </Link>
           </div>
 
-          <p className="empty-state">
-            No recommendations are available yet.
-          </p>
+          <Recommendations />
         </section>
 
         <ProjectFeed />

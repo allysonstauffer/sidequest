@@ -1,0 +1,56 @@
+.recommendations-list {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 240px), 1fr)
+  );
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.recommendation-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px;
+  border: 1px solid var(--sq-border);
+  border-radius: 16px;
+  background: var(--sq-surface);
+}
+
+.recommendation-card h2 {
+  margin: 0;
+  color: var(--sq-text);
+  font-size: 1.125rem;
+  line-height: 1.4;
+}
+
+.recommendation-card p {
+  margin: 0;
+  color: var(--sq-text);
+  font-size: 0.875rem;
+  line-height: 1.6;
+}
+
+.recommendation-card .recommendation-details {
+  color: var(--sq-accent);
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.recommendations-notice {
+  display: grid;
+  justify-items: start;
+  gap: 12px;
+}
+
+.recommendations-notice p {
+  margin: 0;
+}
+
+.recommendations-notice button {
+  font: inherit;
+  cursor: pointer;
+}
