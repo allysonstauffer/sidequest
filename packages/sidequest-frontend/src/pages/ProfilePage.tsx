@@ -4,7 +4,7 @@ import { HOBBIES } from "../preferences/model";
 import type { PreferenceService } from "../preferences/model";
 import { supabasePreferenceService } from "../preferences/supabasePreferenceService";
 import { usePreferences } from "../preferences/usePreferences";
-
+import ProjectFeed from "../components/ProjectFeed";
 interface Props {
   preferenceService?: PreferenceService;
 }
@@ -72,6 +72,10 @@ function ProfilePage({
           <Link to="/onboarding" className="site-text-link">
             Edit hobbies and skill levels
           </Link>
+          <ProjectFeed
+        authorId={session.user.id}
+        accessToken={session.access_token}
+      />
         </>
       )}
     </section>

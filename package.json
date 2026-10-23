@@ -15,7 +15,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "dev": "fastapi dev packages/sidequest-backend/upload.py",
+    "dev": "fastapi dev packages/sidequest-backend/post_handling.py",
     "format": "prettier --write './**/*.{js,jsx,ts,tsx,css,md,json}' --config ./.prettierrc"
   },
   "workspaces": [
