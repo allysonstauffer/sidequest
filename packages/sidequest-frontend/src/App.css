@@ -924,12 +924,14 @@
   min-height: 120px;
 }
 
-.app-shell .field-group input[type='file'] {
+.app-shell .field-group input[type="file"] {
   padding: 9px;
   cursor: pointer;
 }
 
-.app-shell .field-group input[type='file']::file-selector-button {
+.app-shell
+  .field-group
+  input[type="file"]::file-selector-button {
   margin-right: 12px;
   padding: 8px 12px;
   border: 0;
@@ -940,6 +942,25 @@
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+}
+
+.app-shell .beginner-friendly-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  color: #d8d8f6;
+}
+
+.app-shell .beginner-friendly-option input[type="checkbox"] {
+  margin: 3px 0 0;
+  accent-color: #b18fcf;
+}
+
+.app-shell .beginner-friendly-option small {
+  display: block;
+  margin-top: 4px;
+  color: #c4b4cf;
+  font-weight: 400;
 }
 
 .app-shell .upload-help {
@@ -992,7 +1013,7 @@
   }
 
   .app-shell .sidebar,
-.app-shell .rail {
+  .app-shell .rail {
     flex-basis: auto;
     width: 100%;
     border: none;

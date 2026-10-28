@@ -11,7 +11,7 @@ export interface DiscoveryContentItem {
   id: string;
   title: string;
   description: string;
-  hobby: string;
+  hobby?: string;
   kind: "Post" | "Project";
   beginnerFriendly: boolean;
   imageUrl?: string;

@@ -1,18 +1,53 @@
-import { type MouseEventHandler, useState } from "react";
-import { Search, UsersRound, X } from "lucide-react";
 import {
-  mockCommunities,
-  mockDiscoveryContent
-} from "../data/mockDiscoveryData";
+  type MouseEventHandler,
+  useEffect,
+  useState
+} from "react";
+import { Search, UsersRound, X } from "lucide-react";
+import { mockCommunities } from "../data/mockDiscoveryData";
+import { supabase } from "../lib/supabase";
 import type {
   DiscoveryContentItem,
   HobbyCommunity
 } from "../types/discovery";
-import {
-  filterBeginnerFriendlyContent,
-  searchCommunitiesByTag
-} from "../utils/discovery";
+import { searchCommunitiesByTag } from "../utils/discovery";
 import "../components/CommunityDiscovery.css";
+
+type ContentStatus = "loading" | "ready" | "error";
+
+function mapProjectContent(
+  value: unknown
+): DiscoveryContentItem {
+  if (!value || typeof value !== "object") {
+    throw new Error("A project record is malformed.");
+  }
+
+  const project = value as Record<string, unknown>;
+  const mediaUrls = project.media_urls;
+  if (
+    typeof project.id !== "string" ||
+    typeof project.title !== "string" ||
+    (project.description !== null &&
+      typeof project.description !== "string") ||
+    typeof project.beginner_friendly !== "boolean" ||
+    (mediaUrls !== null &&
+      (!Array.isArray(mediaUrls) ||
+        !mediaUrls.every((url) => typeof url === "string")))
+  ) {
+    throw new Error("A project record is malformed.");
+  }
+
+  return {
+    id: project.id,
+    title: project.title,
+    description: project.description ?? "",
+    kind: "Project",
+    beginnerFriendly: project.beginner_friendly,
+    imageUrl: Array.isArray(mediaUrls)
+      ? mediaUrls[0]
+      : undefined
+  };
+}
 
 function CommunityCard({
   community,
@@ -81,7 +116,7 @@ function DiscoveryContentCard({
       <div className="sample-content-body">
         <div className="sample-content-meta">
           <span>{item.kind}</span>
-          <span>{item.hobby}</span>
+          {item.hobby ? <span>{item.hobby}</span> : null}
         </div>
         <h4>{item.title}</h4>
         <p>{item.description}</p>
@@ -99,20 +134,61 @@ export function CommunityDiscovery() {
   const [searchTerm, setSearchTerm] = useState("");
   const [beginnerFriendlyOnly, setBeginnerFriendlyOnly] =
     useState(false);
+  const [content, setContent] = useState<
+    DiscoveryContentItem[]
+  >([]);
+  const [contentStatus, setContentStatus] =
+    useState<ContentStatus>("loading");
+  const [reloadContent, setReloadContent] = useState(0);
   const matchingCommunities = searchCommunitiesByTag(
     mockCommunities,
     searchTerm
   );
-  const visibleContent = filterBeginnerFriendlyContent(
-    mockDiscoveryContent,
-    beginnerFriendlyOnly
-  );
+  const visibleContent = content;
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadContent() {
+      setContentStatus("loading");
+      try {
+        let query = supabase
+          .from("projects")
+          .select(
+            "id,title,description,media_urls,beginner_friendly,created_at"
+          );
+        if (beginnerFriendlyOnly) {
+          query = query.eq("beginner_friendly", true);
+        }
+        const { data, error } = await query
+          .order("created_at", { ascending: false })
+          .limit(20);
+
+        if (error) {
+          throw new Error(error.message);
+        }
+
+        const projects = (data ?? []).map(mapProjectContent);
+        if (active) {
+          setContent(projects);
+          setContentStatus("ready");
+        }
+      } catch {
+        if (active) setContentStatus("error");
+      }
+    }
+
+    void loadContent();
+    return () => {
+      active = false;
+    };
+  }, [beginnerFriendlyOnly, reloadContent]);
 
   return (
     <div className="community-discovery">
       <p className="sample-data-notice">
-        Sample data preview · These communities and posts are
-        examples, not live SideQuest content.
+        Community examples are sample data. Posts and projects
+        below are loaded from SideQuest.
       </p>
 
       <section
@@ -230,8 +306,8 @@ export function CommunityDiscovery() {
         <div className="content-filter-toolbar">
           <p>
             {beginnerFriendlyOnly
-              ? "Showing approachable sample content."
-              : "Browse sample posts and projects across hobbies."}
+              ? "Showing beginner-friendly posts and projects."
+              : "Browse the latest posts and projects."}
           </p>
           {beginnerFriendlyOnly ? (
             <button
@@ -243,7 +319,22 @@ export function CommunityDiscovery() {
           ) : null}
         </div>
 
-        {visibleContent.length > 0 ? (
+        {contentStatus === "loading" ? (
+          <p role="status">Loading posts and projects…</p>
+        ) : contentStatus === "error" ? (
+          <div className="discovery-empty-state" role="alert">
+            <h4>Posts and projects could not be loaded.</h4>
+            <p>Please check your connection and try again.</p>
+            <button
+              className="text-reset-button"
+              type="button"
+              onClick={() =>
+                setReloadContent((current) => current + 1)
+              }>
+              Try again
+            </button>
+          </div>
+        ) : visibleContent.length > 0 ? (
           <div
             className="sample-content-grid"
             aria-live="polite">
@@ -256,20 +347,26 @@ export function CommunityDiscovery() {
             className="discovery-empty-state content-empty-state"
             role="status">
             <h4>
-              No beginner-friendly sample content is available.
+              {beginnerFriendlyOnly
+                ? "No beginner-friendly posts or projects yet."
+                : "No posts or projects yet."}
             </h4>
             <p>
-              Turn off the filter to see all sample posts and
-              projects.
+              {beginnerFriendlyOnly
+                ? "Turn off the filter to see all posts and projects."
+                : "Check back later to discover community content."}
             </p>
-            <button
-              className="text-reset-button"
-              type="button"
-              onClick={() => setBeginnerFriendlyOnly(false)}>
-              Show all content
-            </button>
+            {beginnerFriendlyOnly ? (
+              <button
+                className="text-reset-button"
+                type="button"
+                onClick={() => setBeginnerFriendlyOnly(false)}>
+                Show all content
+              </button>
+            ) : null}
           </div>
         )}
       </section>
     </div>
-  );}
+  );
+}

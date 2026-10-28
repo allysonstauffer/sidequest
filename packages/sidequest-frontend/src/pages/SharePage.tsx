@@ -1,5 +1,5 @@
-import { useNavigate } from "react-router-dom"
-import DashboardLayout from "../components/DashboardLayout"
+import { useNavigate } from "react-router-dom";
+import DashboardLayout from "../components/DashboardLayout";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/useAuth";
 
@@ -29,7 +29,9 @@ function SharePage() {
     try {
       const response = await fetch("/api/upload", {
         method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: {
+          Authorization: `Bearer ${session.access_token}`
+        },
         body: formData
       });
       if (!response.ok) {
@@ -89,6 +91,20 @@ function SharePage() {
               placeholder="Share what you are making"
               required
             />
+          </label>
+          <label className="beginner-friendly-option">
+            <input
+              type="checkbox"
+              name="beginner_friendly"
+              value="true"
+            />
+            <span>
+              <strong>Beginner-friendly</strong>
+              <small>
+                Mark this post if it is approachable for people
+                learning this hobby.
+              </small>
+            </span>
           </label>
           <div className="submit-row">
             <button

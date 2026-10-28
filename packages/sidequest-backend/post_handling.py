@@ -22,6 +22,7 @@ def upload(
     attachment: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(""),
+    beginner_friendly: bool = Form(False),
     authorization: str | None = Header(default=None),
 ):
     
@@ -116,6 +117,7 @@ def upload(
                 "title": title,
                 "description": description or None,
                 "media_urls": [public_url],
+                "beginner_friendly": beginner_friendly,
             }
         ).execute()
         

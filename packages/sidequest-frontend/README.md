@@ -249,3 +249,20 @@ nearest difficulty first. This catalogue covers all three
 hobbies and four levels. It is separate from shared project
 records; real project recommendations require a hobby/difficulty
 association in that schema.
+
+### Beginner-friendly project discovery
+
+The Discover section reads the latest 20 records from
+`public.projects`. Uploaded posts are stored in that table.
+Apply
+[`202610280001_beginner_friendly_projects.sql`](../../supabase/migrations/202610280001_beginner_friendly_projects.sql)
+before using this version of the frontend; it adds a
+`beginner_friendly` boolean that defaults to `false` for
+existing and new records. The Share form lets an author mark a
+post as beginner-friendly. Discover filters the loaded projects
+using that database field. Its community cards remain sample
+content.
+
+The migration does not change `projects` row-level security
+policies. Discover can only show records allowed by the
+project's existing read policy.
