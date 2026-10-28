@@ -4,8 +4,10 @@ import {
   useState
 } from "react";
 import { Search, UsersRound, X } from "lucide-react";
-import { mockCommunities } from "../data/mockDiscoveryData";
+import { Link } from "react-router-dom";
+import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabase";
+import { useHobbyCategories } from "../hobbies/useHobbyCategories";
 import type {
   DiscoveryContentItem,
   HobbyCommunity
@@ -14,6 +16,39 @@ import { searchCommunitiesByTag } from "../utils/discovery";
 import "../components/CommunityDiscovery.css";
 
 type ContentStatus = "loading" | "ready" | "error";
+type CommunityStatus = "loading" | "ready" | "error";
+
+type CommunityRecord = {
+  id: string;
+  name: string;
+  description: string;
+  hobby: string | null;
+};
+
+function mapCommunity(value: unknown): CommunityRecord {
+  if (!value || typeof value !== "object") {
+    throw new Error("A community record is malformed.");
+  }
+
+  const community = value as Record<string, unknown>;
+  if (
+    typeof community.id !== "string" ||
+    typeof community.name !== "string" ||
+    (community.description !== null &&
+      typeof community.description !== "string") ||
+    (community.hobby !== null &&
+      typeof community.hobby !== "string")
+  ) {
+    throw new Error("A community record is malformed.");
+  }
+
+  return {
+    id: community.id,
+    name: community.name,
+    description: community.description ?? "",
+    hobby: community.hobby
+  };
+}
 
 function mapProjectContent(
   value: unknown
@@ -49,10 +84,18 @@ function mapProjectContent(
 
 function CommunityCard({
   community,
-  onSelectTag
+  onSelectTag,
+  signedIn,
+  isMember,
+  membershipPending,
+  onToggleMembership
 }: {
   community: HobbyCommunity;
   onSelectTag: MouseEventHandler<HTMLButtonElement>;
+  signedIn: boolean;
+  isMember: boolean;
+  membershipPending: boolean;
+  onToggleMembership: () => void;
 }) {
   return (
     <article className="sample-community-card">
@@ -65,7 +108,7 @@ function CommunityCard({
         />
       ) : null}
       <div className="sample-community-body">
-        <span className="sample-kind">Sample community</span>
+        <span className="sample-kind">Community</span>
         <h4>{community.name}</h4>
         <p>{community.description}</p>
         <ul
@@ -84,13 +127,23 @@ function CommunityCard({
             </li>
           ))}
         </ul>
-        <button
-          className="join-community-button"
-          type="button"
-          disabled
-          title="Community membership is not implemented yet">
-          Join Community · Coming Soon
-        </button>
+        {signedIn ? (
+          <button
+            className="join-community-button"
+            type="button"
+            disabled={membershipPending}
+            onClick={onToggleMembership}>
+            {membershipPending
+              ? "Updating…"
+              : isMember
+                ? "Leave community"
+                : "Join community"}
+          </button>
+        ) : (
+          <Link className="join-community-button" to="/login">
+            Sign in to join
+          </Link>
+        )}
       </div>
     </article>
   );
@@ -124,18 +177,166 @@ function DiscoveryContentCard({
 }
 
 export function CommunityDiscovery() {
+  const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [communities, setCommunities] = useState<
+    CommunityRecord[]
+  >([]);
+  const [communityStatus, setCommunityStatus] =
+    useState<CommunityStatus>("loading");
+  const [reloadCommunities, setReloadCommunities] = useState(0);
+  const [memberships, setMemberships] = useState<Set<string>>(
+    new Set()
+  );
+  const [membershipStatus, setMembershipStatus] =
+    useState<CommunityStatus>("loading");
+  const [reloadMemberships, setReloadMemberships] = useState(0);
+  const [membershipActionId, setMembershipActionId] = useState<
+    string | null
+  >(null);
+  const [membershipNotice, setMembershipNotice] = useState("");
   const [content, setContent] = useState<
     DiscoveryContentItem[]
   >([]);
   const [contentStatus, setContentStatus] =
     useState<ContentStatus>("loading");
   const [reloadContent, setReloadContent] = useState(0);
+  const {
+    categories,
+    status: categoryStatus,
+    reload: reloadCategories
+  } = useHobbyCategories();
+  const categoryNames = new Map(
+    categories.map(({ id, name }) => [id, name])
+  );
+  const searchableCommunities: HobbyCommunity[] =
+    communities.map((community) => ({
+      id: community.id,
+      name: community.name,
+      description: community.description,
+      tags: community.hobby
+        ? [
+            categoryNames.get(community.hobby) ??
+              community.hobby
+          ]
+        : []
+    }));
   const matchingCommunities = searchCommunitiesByTag(
-    mockCommunities,
+    searchableCommunities,
     searchTerm
   );
   const visibleContent = content;
+
+  useEffect(() => {
+    let active = true;
+    const userId = session?.user.id;
+
+    async function loadMemberships() {
+      if (!userId) {
+        setMemberships(new Set());
+        setMembershipStatus("ready");
+        return;
+      }
+
+      setMembershipStatus("loading");
+      try {
+        const { data, error } = await supabase
+          .from("community_memberships")
+          .select("community_id")
+          .eq("user_id", userId);
+        if (error) throw new Error(error.message);
+
+        const communityIds = (data ?? []).map((row) => {
+          if (typeof row.community_id !== "string") {
+            throw new Error(
+              "A community membership record is malformed."
+            );
+          }
+          return row.community_id;
+        });
+        if (!active) return;
+        setMemberships(new Set(communityIds));
+        setMembershipStatus("ready");
+      } catch {
+        if (active) setMembershipStatus("error");
+      }
+    }
+
+    void loadMemberships();
+    return () => {
+      active = false;
+    };
+  }, [session?.user.id, reloadMemberships]);
+
+  useEffect(() => {
+    let active = true;
+
+    async function loadCommunities() {
+      setCommunityStatus("loading");
+      try {
+        const { data, error } = await supabase
+          .from("communities")
+          .select("id,name,description,hobby")
+          .order("created_at", { ascending: false });
+        if (error) throw new Error(error.message);
+
+        const records = (data ?? []).map(mapCommunity);
+        if (!active) return;
+        setCommunities(records);
+        setCommunityStatus("ready");
+      } catch {
+        if (active) setCommunityStatus("error");
+      }
+    }
+
+    void loadCommunities();
+    return () => {
+      active = false;
+    };
+  }, [reloadCommunities]);
+
+  async function toggleMembership(communityId: string) {
+    const userId = session?.user.id;
+    if (
+      !userId ||
+      membershipActionId ||
+      membershipStatus !== "ready"
+    ) {
+      return;
+    }
+
+    setMembershipActionId(communityId);
+    setMembershipNotice("");
+    try {
+      const isMember = memberships.has(communityId);
+      const result = isMember
+        ? await supabase
+            .from("community_memberships")
+            .delete()
+            .eq("user_id", userId)
+            .eq("community_id", communityId)
+        : await supabase.from("community_memberships").insert({
+            user_id: userId,
+            community_id: communityId
+          });
+      if (result.error) throw new Error(result.error.message);
+
+      setMemberships((current) => {
+        const next = new Set(current);
+        if (isMember) next.delete(communityId);
+        else next.add(communityId);
+        return next;
+      });
+    } catch (error) {
+      setMembershipNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to update community membership."
+      );
+    } finally {
+      setMembershipActionId(null);
+    }
+  }
 
   useEffect(() => {
     let active = true;
@@ -173,8 +374,7 @@ export function CommunityDiscovery() {
   return (
     <div className="community-discovery">
       <p className="sample-data-notice">
-        Community examples are sample data. Projects below are
-        loaded from SideQuest.
+        Communities and projects are loaded from SideQuest.
       </p>
 
       <section
@@ -190,10 +390,10 @@ export function CommunityDiscovery() {
           <span
             className="discovery-result-count"
             aria-live="polite">
-            {matchingCommunities.length} sample{" "}
+            {matchingCommunities.length}{" "}
             {matchingCommunities.length === 1
-              ? "group"
-              : "groups"}
+              ? "community"
+              : "communities"}
           </span>
         </div>
 
@@ -211,7 +411,7 @@ export function CommunityDiscovery() {
             onChange={(event) =>
               setSearchTerm(event.target.value)
             }
-            placeholder="Try photography, painting, or gardening"
+            placeholder="Search a hobby category"
             autoComplete="off"
           />
           {searchTerm ? (
@@ -230,7 +430,28 @@ export function CommunityDiscovery() {
           names.
         </p>
 
-        {matchingCommunities.length > 0 ? (
+        {communityStatus === "loading" ||
+        categoryStatus === "loading" ? (
+          <p role="status">Loading communities…</p>
+        ) : communityStatus === "error" ||
+          categoryStatus === "error" ? (
+          <div className="discovery-empty-state" role="alert">
+            <h4>
+              Communities or hobby categories could not be
+              loaded.
+            </h4>
+            <p>Please check your connection and try again.</p>
+            <button
+              className="text-reset-button"
+              type="button"
+              onClick={() => {
+                setReloadCommunities((current) => current + 1);
+                reloadCategories();
+              }}>
+              Try again
+            </button>
+          </div>
+        ) : matchingCommunities.length > 0 ? (
           <div
             className="sample-community-grid"
             aria-live="polite">
@@ -238,6 +459,15 @@ export function CommunityDiscovery() {
               <CommunityCard
                 key={community.id}
                 community={community}
+                signedIn={Boolean(session)}
+                isMember={memberships.has(community.id)}
+                membershipPending={
+                  membershipStatus !== "ready" ||
+                  membershipActionId !== null
+                }
+                onToggleMembership={() =>
+                  void toggleMembership(community.id)
+                }
                 onSelectTag={(event) =>
                   setSearchTerm(
                     event.currentTarget.dataset.interestTag ??
@@ -250,18 +480,47 @@ export function CommunityDiscovery() {
         ) : (
           <div className="discovery-empty-state" role="status">
             <UsersRound aria-hidden="true" />
-            <h4>No communities found for this interest.</h4>
+            {searchableCommunities.length === 0 &&
+            !searchTerm.trim() ? (
+              <>
+                <h4>No communities yet.</h4>
+                <p>Created communities will appear here.</p>
+              </>
+            ) : (
+              <>
+                <h4>No communities found for this interest.</h4>
+                <p>
+                  Try another hobby category or clear your
+                  search to see all communities.
+                </p>
+                <button
+                  className="text-reset-button"
+                  type="button"
+                  onClick={() => setSearchTerm("")}>
+                  Clear search
+                </button>
+              </>
+            )}
+          </div>
+        )}
+        {session && membershipStatus === "error" && (
+          <div className="discovery-empty-state" role="alert">
             <p>
-              Try another hobby tag or clear your search to see
-              all sample groups.
+              Community membership could not be loaded. Try
+              again before joining or leaving a community.
             </p>
             <button
               className="text-reset-button"
               type="button"
-              onClick={() => setSearchTerm("")}>
-              Clear search
+              onClick={() =>
+                setReloadMemberships((current) => current + 1)
+              }>
+              Try again
             </button>
           </div>
+        )}
+        {membershipNotice && (
+          <p role="alert">{membershipNotice}</p>
         )}
       </section>
 

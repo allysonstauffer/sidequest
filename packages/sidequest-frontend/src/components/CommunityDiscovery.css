@@ -212,20 +212,33 @@
 }
 
 .landing-shell .join-community-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   width: 100%;
   min-height: 40px;
   margin-top: auto;
-  border: 1px solid #dedbd7;
+  border: 1px solid #b46b5f;
   border-radius: 7px;
-  background: #f3f2ef;
-  color: #77736e;
+  background: #fff8f6;
+  color: #663b34;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
+  text-decoration: none;
+}
+
+.landing-shell .join-community-button:hover:not(:disabled) {
+  border-color: var(--coral);
+  background: #fbe9e5;
+  color: var(--ink);
 }
 
 .landing-shell .join-community-button:disabled {
   cursor: not-allowed;
+  border-color: #dedbd7;
+  background: #f3f2ef;
+  color: #55514d;
 }
 
 .landing-shell .content-discovery-section {
