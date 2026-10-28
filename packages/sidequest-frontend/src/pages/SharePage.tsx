@@ -62,7 +62,7 @@ function SharePage() {
         <div className="page-header">
           <div>
             <p className="eyebrow">Create</p>
-            <h2>Share a side quest</h2>
+            <h2>Share a project</h2>
           </div>
         </div>
 
@@ -92,26 +92,12 @@ function SharePage() {
               required
             />
           </label>
-          <label className="beginner-friendly-option">
-            <input
-              type="checkbox"
-              name="beginner_friendly"
-              value="true"
-            />
-            <span>
-              <strong>Beginner-friendly</strong>
-              <small>
-                Mark this post if it is approachable for people
-                learning this hobby.
-              </small>
-            </span>
-          </label>
           <div className="submit-row">
             <button
               type="submit"
               className="primary-button"
               disabled={isUploading}>
-              {isUploading ? "uploading" : "upload"}
+              {isUploading ? "sharing…" : "Share project"}
             </button>
           </div>
           {notice && (

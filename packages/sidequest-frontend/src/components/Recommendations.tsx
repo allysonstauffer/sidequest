@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { HOBBIES } from "../preferences/model";
+import { useHobbyCategories } from "../hobbies/useHobbyCategories";
 import type { PreferenceService } from "../preferences/model";
 import {
   DEFAULT_ACTIVITIES,
@@ -21,6 +22,7 @@ export default function Recommendations({
   activities = DEFAULT_ACTIVITIES
 }: Props) {
   const { session, loading: authLoading } = useAuth();
+  const { categories } = useHobbyCategories();
   const { loading, data, error, reload } = usePreferences(
     session?.user.id ?? "",
     preferenceService
@@ -76,8 +78,12 @@ export default function Recommendations({
       aria-label="Activities for your interests">
       {recommendations.map((activity) => {
         const hobbyLabel =
+          categories.find(
+            (hobby) => hobby.id === activity.hobby
+          )?.name ??
           HOBBIES.find((hobby) => hobby.id === activity.hobby)
-            ?.label ?? activity.hobby;
+            ?.label ??
+          activity.hobby;
 
         return (
           <li key={activity.id} className="recommendation-card">

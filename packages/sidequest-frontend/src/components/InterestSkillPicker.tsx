@@ -1,18 +1,21 @@
-import { HOBBIES, SKILL_LEVELS } from "../preferences/model";
+import { SKILL_LEVELS } from "../preferences/model";
 
 import type {
   HobbySelection,
   SkillLevel
 } from "../preferences/model";
+import type { HobbyCategory } from "../hobbies/useHobbyCategories";
 
 interface Props {
   value: HobbySelection;
+  categories: HobbyCategory[];
   onChange: (next: HobbySelection) => void;
   disabled?: boolean;
 }
 
 export default function InterestSkillPicker({
   value,
+  categories,
   onChange,
   disabled = false
 }: Props) {
@@ -20,7 +23,7 @@ export default function InterestSkillPicker({
     <fieldset disabled={disabled}>
       <legend>Select your interests</legend>
 
-      {HOBBIES.map(({ id, label }) => {
+      {categories.map(({ id, name }) => {
         const level = value[id];
 
         return (
@@ -42,13 +45,12 @@ export default function InterestSkillPicker({
                 }}
               />
 
-              {label}
+              {name}
             </label>
 
             {level !== undefined && (
               <label>
-                Your level in {label}
-
+                Your level in {name}
                 <select
                   value={level}
                   onChange={(event) =>

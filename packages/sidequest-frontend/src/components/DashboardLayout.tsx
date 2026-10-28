@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Link, NavLink } from "react-router-dom"
+import { Link, NavLink } from "react-router-dom";
 import LogoutButton from "./LogoutButton";
 const imgIcon =
   "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
@@ -66,12 +66,12 @@ function DashboardLayout({
         </div>
 
         <div className="sidebar-footer">
-          <Link to="/share" className="cta-button">
-            <span>Share a side quest</span>
+          <Link to="/profile" className="cta-button">
+            <span>Share a sidequest</span>
           </Link>
 
           <Link to="/profile" className="cta-button">
-            <span> Profile</span>
+            <span>Profile</span>
           </Link>
           <LogoutButton />
         </div>
@@ -82,4 +82,4 @@ function DashboardLayout({
   );
 }
 
-export default DashboardLayout
+export default DashboardLayout;

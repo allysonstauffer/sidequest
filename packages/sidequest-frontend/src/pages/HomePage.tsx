@@ -1,12 +1,16 @@
-import { Link } from "react-router-dom"
-import DashboardLayout from "../components/DashboardLayout"
+import { Link } from "react-router-dom";
+import DashboardLayout from "../components/DashboardLayout";
 import Recommendations from "../components/Recommendations";
 import ProjectFeed from "../components/ProjectFeed";
+import SidequestEvents from "../components/SidequestEvents";
+import { useAuth } from "../auth/useAuth";
 const imgIcon3 =
   "https://www.figma.com/api/mcp/asset/528c07f3-fe9a-438d-ab72-05773043bd94.svg";
 const imgIcon4 =
   "https://www.figma.com/api/mcp/asset/f5d983c7-1d55-4601-9522-1669591869c0.svg";
 function HomePage() {
+  const { session } = useAuth();
+
   return (
     <DashboardLayout>
       <main className="feed">
@@ -21,7 +25,7 @@ function HomePage() {
             className="header-actions"
             aria-label="Header actions">
             <Link
-              to="/share"
+              to="/profile"
               className="icon-button small-button"
               aria-label="Add">
               <img src={imgIcon3} alt="" />
@@ -35,9 +39,16 @@ function HomePage() {
           </div>
         </header>
 
+        {session ? (
+          <SidequestEvents
+            viewerId={session.user.id}
+            title="Explore your next sidequest"
+          />
+        ) : null}
+
         <section className="discover-block">
           <div className="section-heading">
-            <span>Explore your next side quest</span>
+            <span>Suggested activities for you</span>
             <Link to="/browse" className="link-button">
               Browse all
             </Link>
@@ -46,7 +57,12 @@ function HomePage() {
           <Recommendations />
         </section>
 
-        <ProjectFeed />
+        {session ? (
+          <ProjectFeed
+            followedById={session.user.id}
+            title="Projects from people you follow"
+          />
+        ) : null}
       </main>
     </DashboardLayout>
   );

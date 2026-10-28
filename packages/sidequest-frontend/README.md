@@ -144,8 +144,8 @@ Sources:
 [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
-Project, community, and message persistence remain placeholders.
-Profiles and hobby preferences use the database setup described
+Message persistence remains a placeholder. Public communities,
+profiles, and hobby preferences use the database setup described
 below. The frontend route guards control navigation; database
 permissions and Row Level Security enforce record access.
 
@@ -250,21 +250,34 @@ hobbies and four levels. It is separate from shared project
 records; real project recommendations require a hobby/difficulty
 association in that schema.
 
-### Beginner-friendly project discovery
+### Projects and sidequest events
 
-The Discover section reads the latest 20 records from
-`public.projects`. Uploaded posts are stored in that table.
+Projects are completed work stored in `public.projects`.
+Sidequests are upcoming public events stored separately in
+`public.sidequests`; users can RSVP through
+`public.sidequest_rsvps`. The profile shows the user's projects
+and upcoming hosted events. `/feed` lists public upcoming events
+with title/description search and hobby and recommended-skill
+filters, separate suggested activities, and completed projects
+from authors the current user follows.
+
 Apply
-[`202610280001_beginner_friendly_projects.sql`](../../supabase/migrations/202610280001_beginner_friendly_projects.sql)
-before using this version of the frontend; it adds a
-`beginner_friendly` boolean that defaults to `false` for
-existing and new records. The Share form lets an author mark a
-post as beginner-friendly. Discover filters the loaded projects
-using that database field. Project cards show either
-“Beginner-Friendly” or “Experience Recommended”; the latter
-appears when the field is false, including for existing records.
-Its community cards remain sample content.
+[`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)
+to create the event and RSVP tables and their row-level security
+policies. Existing project rows are not changed. The previous
+beginner-friendly project field remains in the database for
+compatibility, but completed project cards and the project form
+no longer show or use beginner/experience labels.
 
-The migration does not change `projects` row-level security
-policies. Discover can only show records allowed by the
-project's existing read policy.
+Apply
+[`202610280004_user_follows.sql`](../../supabase/migrations/202610280004_user_follows.sql)
+to enable one-way follows. Users can follow other accounts from
+their public profile, and `/feed` then shows projects by those
+authors.
+
+Apply
+[`202610280005_communities.sql`](../../supabase/migrations/202610280005_communities.sql)
+to enable the community directory. Signed-in users can create
+public communities in the supported hobby categories. Creating a
+community does not add a separate membership or join
+relationship.

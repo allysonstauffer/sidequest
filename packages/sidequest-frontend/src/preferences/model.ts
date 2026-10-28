@@ -11,7 +11,7 @@ export const SKILL_LEVELS = [
   "Expert"
 ] as const;
 
-export type HobbyId = (typeof HOBBIES)[number]["id"];
+export type HobbyId = string;
 
 export type SkillLevel = (typeof SKILL_LEVELS)[number];
 
@@ -44,7 +44,8 @@ export function isPreference(
   const row = value as Record<string, unknown>;
 
   return (
-    HOBBIES.some((hobby) => hobby.id === row.hobby) &&
+    typeof row.hobby === "string" &&
+    row.hobby.length > 0 &&
     SKILL_LEVELS.some((level) => level === row.experience_level)
   );
 }
@@ -64,13 +65,9 @@ export function toSelection(
 export function toPreferences(
   selection: HobbySelection
 ): Preference[] {
-  return HOBBIES.flatMap(({ id }) => {
-    const level = selection[id];
-
-    return level
-      ? [{ hobby: id, experience_level: level }]
-      : [];
-  });
+  return Object.entries(selection).flatMap(([hobby, level]) =>
+    level ? [{ hobby, experience_level: level }] : []
+  );
 }
 
 export function validatePreferences(

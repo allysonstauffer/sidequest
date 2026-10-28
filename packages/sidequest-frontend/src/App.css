@@ -22,6 +22,42 @@
   color: inherit;
 }
 
+.app-shell
+  input:not([type="checkbox"]):not([type="radio"]):not(
+    [type="file"]
+  ),
+.app-shell textarea,
+.app-shell select {
+  border: 2px solid #c9b2df;
+  background-color: #24232b;
+  color: #ffffff;
+}
+
+.app-shell input::placeholder,
+.app-shell textarea::placeholder {
+  color: #d3cedb;
+  opacity: 1;
+}
+
+.app-shell button:focus-visible,
+.app-shell a:focus-visible,
+.app-shell input:focus-visible,
+.app-shell textarea:focus-visible,
+.app-shell select:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.app-shell button:not([class]) {
+  border: 2px solid #c9b2df;
+  background-color: #494850;
+  color: #ffffff;
+}
+
+.app-shell button:not([class]):hover:not(:disabled) {
+  background-color: #5b5864;
+}
+
 .app-shell button,
 .app-shell a {
   cursor: pointer;
@@ -279,7 +315,7 @@
   width: 40px;
   height: 40px;
   border-radius: 999px;
-  border: 1px solid rgba(231, 229, 228, 0.8);
+  border: 2px solid #c9b2df;
   background: #494850;
   display: grid;
   place-items: center;
@@ -338,7 +374,9 @@
 .app-shell .link-button,
 .app-shell .primary-link,
 .app-shell .follow-button {
-  color: #b18fcf;
+  color: #decdf0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
   background: transparent;
   font-size: 11px;
   font-weight: 400;
@@ -762,14 +800,15 @@
 
 .app-shell .primary-link,
 .app-shell .primary-button {
-  background: #b18fcf;
+  border: 2px solid #e8dcf5;
+  background: #c9b2df;
   color: #2c2c34;
 }
 
 .app-shell .secondary-button {
-  background: rgba(177, 143, 207, 0.18);
-  color: #d8d8f6;
-  border: 1px solid rgba(177, 143, 207, 0.4);
+  background: #38313f;
+  color: #ffffff;
+  border: 2px solid #d6c3e8;
 }
 
 .app-shell .page-grid {
@@ -913,10 +952,10 @@
 .app-shell .field-group input,
 .app-shell .field-group textarea {
   border-radius: 16px;
-  border: 1px solid rgba(231, 229, 228, 0.8);
-  background: rgba(44, 44, 52, 0.5);
+  border: 2px solid #c9b2df;
+  background: #24232b;
   padding: 14px 16px;
-  color: #d8d8f6;
+  color: #ffffff;
   resize: vertical;
 }
 
@@ -936,31 +975,12 @@
   padding: 8px 12px;
   border: 0;
   border-radius: 9px;
-  background: rgba(177, 143, 207, 0.22);
-  color: #d8d8f6;
+  background: #c9b2df;
+  color: #211b29;
   font: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-}
-
-.app-shell .beginner-friendly-option {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  color: #d8d8f6;
-}
-
-.app-shell .beginner-friendly-option input[type="checkbox"] {
-  margin: 3px 0 0;
-  accent-color: #b18fcf;
-}
-
-.app-shell .beginner-friendly-option small {
-  display: block;
-  margin-top: 4px;
-  color: #c4b4cf;
-  font-weight: 400;
 }
 
 .app-shell .upload-help {
@@ -991,15 +1011,27 @@
   right: 12px;
   padding: 8px 11px;
   border-radius: 9px;
-  background: rgba(44, 44, 52, 0.9);
-  color: #d8d8f6;
+  border: 2px solid #e8dcf5;
+  background: #24232b;
+  color: #ffffff;
   font-size: 12px;
   font-weight: 700;
 }
 
 .app-shell .primary-button:disabled {
+  border-color: #b7adbf;
+  background: #62596b;
+  color: #ffffff;
   cursor: wait;
-  opacity: 0.7;
+}
+
+.app-shell .icon-button:focus-visible,
+.app-shell .primary-link:focus-visible,
+.app-shell .secondary-button:focus-visible,
+.app-shell .link-button:focus-visible,
+.app-shell .follow-button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
 }
 
 .app-shell .submit-row {

@@ -1,20 +1,18 @@
 import type { FormEvent } from "react";
 
-import {
-  Navigate,
-  useNavigate
-} from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 
 import { useAuth } from "../auth/useAuth";
 import InterestSkillPicker from "../components/InterestSkillPicker";
+import { useHobbyCategories } from "../hobbies/useHobbyCategories";
+import type { HobbyCategory } from "../hobbies/useHobbyCategories";
 
 import type {
   Preference,
   PreferenceService
 } from "../preferences/model";
 
-import { supabasePreferenceService } from
-  "../preferences/supabasePreferenceService";
+import { supabasePreferenceService } from "../preferences/supabasePreferenceService";
 
 import {
   usePreferences,
@@ -30,9 +28,16 @@ export default function OnboardingPage({
 }: Props) {
   const { session, loading: authLoading } = useAuth();
   const userId = session?.user.id ?? "";
+  const {
+    categories,
+    status: categoriesStatus,
+    reload: reloadCategories
+  } = useHobbyCategories();
 
-  const { loading, data, error, reload } =
-    usePreferences(userId, preferenceService);
+  const { loading, data, error, reload } = usePreferences(
+    userId,
+    preferenceService
+  );
 
   if (authLoading) {
     return <p role="status">Loading your account…</p>;
@@ -44,6 +49,21 @@ export default function OnboardingPage({
 
   if (loading) {
     return <p role="status">Loading your interests…</p>;
+  }
+
+  if (categoriesStatus === "loading") {
+    return <p role="status">Loading hobby categories…</p>;
+  }
+  if (categoriesStatus === "error") {
+    return (
+      <section className="site-page">
+        <p role="alert">
+          Could not load hobby categories. Check that the hobby
+          categories migration has been applied.
+        </p>
+        <button onClick={reloadCategories}>Try again</button>
+      </section>
+    );
   }
 
   if (error || !data) {
@@ -62,13 +82,12 @@ export default function OnboardingPage({
     <section className="site-page">
       <h1>Your interests</h1>
 
-      <p>
-        Choose your hobbies and your experience with each.
-      </p>
+      <p>Choose your hobbies and your experience with each.</p>
 
       <OnboardingForm
         key={userId}
         initialPreferences={data.preferences}
+        categories={categories}
         preferenceService={preferenceService}
       />
     </section>
@@ -77,23 +96,17 @@ export default function OnboardingPage({
 
 function OnboardingForm({
   initialPreferences,
+  categories,
   preferenceService
 }: {
   initialPreferences: Preference[];
+  categories: HobbyCategory[];
   preferenceService: PreferenceService;
 }) {
   const navigate = useNavigate();
 
-  const {
-    selection,
-    changeSelection,
-    saving,
-    error,
-    save
-  } = usePreferenceDraft(
-    initialPreferences,
-    preferenceService
-  );
+  const { selection, changeSelection, saving, error, save } =
+    usePreferenceDraft(initialPreferences, preferenceService);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -115,6 +128,7 @@ function OnboardingForm({
       aria-busy={saving}>
       <InterestSkillPicker
         value={selection}
+        categories={categories}
         onChange={changeSelection}
         disabled={saving}
       />

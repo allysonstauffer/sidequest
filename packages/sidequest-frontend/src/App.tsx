@@ -1,12 +1,9 @@
-import {
-  BrowserRouter,
-  Route,
-  Routes,
-} from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import InfoPage from "./pages/InfoPage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import ProfilePage from "./pages/ProfilePage";
+import UserProfilePage from "./pages/UserProfilePage";
 import SiteLayout from "./components/SiteLayout";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -22,7 +19,6 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import RequireOnboarding from "./components/RequireOnboarding";
-
 
 function App() {
   return (
@@ -51,6 +47,10 @@ function App() {
             />
             <Route element={<RequireOnboarding />}>
               <Route path="profile" element={<ProfilePage />} />
+              <Route
+                path="profile/:userId"
+                element={<UserProfilePage />}
+              />
             </Route>
           </Route>
         </Route>
@@ -62,8 +62,14 @@ function App() {
               element={<CommunityPage />}
             />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/messages"
+              element={<MessagesPage />}
+            />
+            <Route
+              path="/settings"
+              element={<SettingsPage />}
+            />
             <Route path="/share" element={<SharePage />} />
             <Route path="/browse" element={<BrowsePage />} />
           </Route>

@@ -13,7 +13,6 @@ export interface DiscoveryContentItem {
   description: string;
   hobby?: string;
   kind: "Post" | "Project";
-  beginnerFriendly: boolean;
   imageUrl?: string;
   imageAlt?: string;
 }

@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
+from pydantic import BaseModel
 from PIL import Image, ImageOps, UnidentifiedImageError
 from supabase import create_client
 
@@ -17,12 +18,16 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 25_000_000
 
 
+class ProjectUpdate(BaseModel):
+    title: str
+    description: str | None = None
+
+
 @app.post("/api/upload")
 def upload(
     attachment: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(""),
-    beginner_friendly: bool = Form(False),
     authorization: str | None = Header(default=None),
 ):
     
@@ -117,7 +122,6 @@ def upload(
                 "title": title,
                 "description": description or None,
                 "media_urls": [public_url],
-                "beginner_friendly": beginner_friendly,
             }
         ).execute()
         
@@ -133,6 +137,71 @@ def upload(
         raise HTTPException(status_code=502, detail="cant save") from exc
 
     return {"project": result.data[0]}
+
+
+@app.patch("/api/upload")
+def update_upload(
+    id: UUID,
+    project: ProjectUpdate,
+    authorization: str | None = Header(default=None),
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="sign in")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token:
+        raise HTTPException(status_code=401, detail="sign in")
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=503, detail="no supabase key")
+
+    supabase = create_client(url, key)
+    try:
+        user = supabase.auth.get_user(token).user
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="sign in again") from exc
+
+    if not user:
+        raise HTTPException(status_code=401, detail="sign in again")
+
+    title = project.title.strip()
+    if not title or len(title) > 200:
+        raise HTTPException(
+            status_code=400,
+            detail="Title must be 1 to 200 characters.",
+        )
+    description = (
+        project.description.strip() if project.description else None
+    )
+
+    try:
+        result = (
+            supabase.table("projects")
+            .update(
+                {
+                    "title": title,
+                    "description": description or None,
+                }
+            )
+            .eq("id", str(id))
+            .eq("author_id", str(user.id))
+            .select("id,title,description,created_at,media_urls")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Post not found.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not update post.",
+        ) from exc
+
+    return {"project": result.data[0]}
+
 
 #delete post
 @app.delete("/api/upload")
