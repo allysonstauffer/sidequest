@@ -106,6 +106,7 @@
 }
 
 .sidequest-event-card {
+  position: relative;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -115,6 +116,63 @@
   border: 1px solid rgba(231, 229, 228, 0.5);
   border-radius: 14px;
   background: #494850;
+}
+
+.sidequest-event-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.sidequest-event-card .sidequest-event-menu-trigger {
+  display: grid;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #38313f;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.sidequest-event-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  padding: 5px;
+  border: 1px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 30%);
+}
+
+.sidequest-event-card .sidequest-event-menu button {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.sidequest-event-card .sidequest-event-menu button:hover {
+  background: #494850;
+}
+
+.sidequest-create-form.sidequest-edit-form {
+  width: 100%;
+  margin: 0;
+}
+
+.sidequest-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
 .sidequest-event-card h3 {

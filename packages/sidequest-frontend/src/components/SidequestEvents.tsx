@@ -69,6 +69,16 @@ function displayHobby(
   );
 }
 
+function toLocalDateTimeInput(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return new Date(
+    date.getTime() - date.getTimezoneOffset() * 60_000
+  )
+    .toISOString()
+    .slice(0, 16);
+}
+
 export default function SidequestEvents({
   viewerId,
   hostId,
@@ -92,6 +102,13 @@ export default function SidequestEvents({
   const [skillFilter, setSkillFilter] = useState("");
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(
+    null
+  );
+  const [openMenuId, setOpenMenuId] = useState<string | null>(
+    null
+  );
+  const [isUpdating, setIsUpdating] = useState(false);
   const [rsvpInProgress, setRsvpInProgress] = useState<
     string | null
   >(null);
@@ -334,6 +351,110 @@ export default function SidequestEvents({
     }
   }
 
+  function startEditing(sidequestId: string) {
+    setOpenMenuId(null);
+    setEditingId(sidequestId);
+    setNotice("");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setNotice("");
+  }
+
+  async function updateSidequest(
+    event: FormEvent<HTMLFormElement>,
+    sidequestId: string
+  ) {
+    event.preventDefault();
+    if (isUpdating) return;
+
+    const formData = new FormData(event.currentTarget);
+    const startsAtValue = formData.get("starts_at");
+    const endsAtValue = formData.get("ends_at");
+    const startsAt =
+      typeof startsAtValue === "string"
+        ? new Date(startsAtValue)
+        : new Date(Number.NaN);
+    const endsAt =
+      typeof endsAtValue === "string"
+        ? new Date(endsAtValue)
+        : new Date(Number.NaN);
+    if (
+      Number.isNaN(startsAt.getTime()) ||
+      startsAt <= new Date()
+    ) {
+      setNotice("Choose a future start time.");
+      return;
+    }
+    if (Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
+      setNotice("The end time must be after the start time.");
+      return;
+    }
+
+    const hobby = formData.get("hobby");
+    const skillLevel = formData.get("skill_level");
+    const title = String(formData.get("title") ?? "").trim();
+    const location = String(
+      formData.get("location") ?? ""
+    ).trim();
+    if (
+      !title ||
+      typeof hobby !== "string" ||
+      !categories.some((option) => option.id === hobby) ||
+      typeof skillLevel !== "string" ||
+      !SKILL_LEVELS.some((option) => option === skillLevel)
+    ) {
+      setNotice(
+        "Enter a title and choose a valid hobby and skill level."
+      );
+      return;
+    }
+    if (!location) {
+      setNotice("Enter a location or meeting link.");
+      return;
+    }
+
+    setIsUpdating(true);
+    setNotice("");
+    try {
+      const { data, error } = await supabase
+        .from("sidequests")
+        .update({
+          title,
+          description: String(
+            formData.get("description") ?? ""
+          ).trim(),
+          starts_at: startsAt.toISOString(),
+          ends_at: endsAt.toISOString(),
+          location,
+          hobby,
+          skill_level: skillLevel
+        })
+        .eq("id", sidequestId)
+        .eq("host_id", viewerId)
+        .select("id")
+        .maybeSingle();
+      if (error) throw new Error(error.message);
+      if (!data) {
+        throw new Error(
+          "This sidequest could not be updated. It may no longer be available."
+        );
+      }
+
+      setEditingId(null);
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to update the sidequest. Please try again."
+      );
+    } finally {
+      setIsUpdating(false);
+    }
+  }
+
   return (
     <section
       className="sidequest-events"
@@ -505,6 +626,35 @@ export default function SidequestEvents({
             <article
               className="sidequest-event-card"
               key={event.id}>
+              {event.host_id === viewerId && (
+                <div className="sidequest-event-actions">
+                  <button
+                    className="sidequest-event-menu-trigger"
+                    type="button"
+                    aria-label={`Actions for ${event.title}`}
+                    aria-expanded={openMenuId === event.id}
+                    aria-controls={`sidequest-menu-${event.id}`}
+                    disabled={isUpdating}
+                    onClick={() =>
+                      setOpenMenuId((current) =>
+                        current === event.id ? null : event.id
+                      )
+                    }>
+                    <span aria-hidden="true">⋯</span>
+                  </button>
+                  {openMenuId === event.id && (
+                    <div
+                      className="sidequest-event-menu"
+                      id={`sidequest-menu-${event.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(event.id)}>
+                        Edit sidequest
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               <div>
                 <p className="sidequest-event-meta">
                   {displayHobby(event.hobby, categories)} ·{" "}
@@ -529,6 +679,99 @@ export default function SidequestEvents({
                 </p>
                 <p>{event.location}</p>
               </div>
+              {editingId === event.id && (
+                <form
+                  className="sidequest-create-form sidequest-edit-form"
+                  onSubmit={(formEvent) =>
+                    void updateSidequest(formEvent, event.id)
+                  }>
+                  <label>
+                    <span>Title</span>
+                    <input
+                      name="title"
+                      maxLength={200}
+                      defaultValue={event.title}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <textarea
+                      name="description"
+                      rows={3}
+                      defaultValue={event.description}
+                    />
+                  </label>
+                  <label>
+                    <span>Hobby community</span>
+                    <select
+                      name="hobby"
+                      defaultValue={event.hobby}
+                      required>
+                      {categories.map(({ id, name }) => (
+                        <option key={id} value={id}>
+                          {name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Recommended skill level</span>
+                    <select
+                      name="skill_level"
+                      defaultValue={event.skill_level}
+                      required>
+                      {SKILL_LEVELS.map((level) => (
+                        <option key={level} value={level}>
+                          {level}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label>
+                    <span>Start date and time</span>
+                    <input
+                      name="starts_at"
+                      type="datetime-local"
+                      defaultValue={toLocalDateTimeInput(
+                        event.starts_at
+                      )}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>End date and time</span>
+                    <input
+                      name="ends_at"
+                      type="datetime-local"
+                      defaultValue={toLocalDateTimeInput(
+                        event.ends_at
+                      )}
+                      required
+                    />
+                  </label>
+                  <label>
+                    <span>Location or meeting link</span>
+                    <input
+                      name="location"
+                      maxLength={300}
+                      defaultValue={event.location}
+                      required
+                    />
+                  </label>
+                  <div className="sidequest-edit-actions">
+                    <button type="submit" disabled={isUpdating}>
+                      {isUpdating ? "Saving…" : "Save changes"}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isUpdating}
+                      onClick={cancelEditing}>
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              )}
               {!hostId ? (
                 <button
                   type="button"
