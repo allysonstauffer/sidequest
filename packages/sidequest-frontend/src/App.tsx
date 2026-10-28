@@ -10,7 +10,6 @@ import ProfilePage from "./pages/ProfilePage";
 import SiteLayout from "./components/SiteLayout";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
-import MessagesPage from "./pages/MessagesPage";
 import SearchPage from "./pages/SearchPage";
 import SharePage from "./pages/SharePage";
 import BrowsePage from "./pages/BrowsePage";
@@ -22,6 +21,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import RequireOnboarding from "./components/RequireOnboarding";
+import DM from "./pages/DM"
 
 
 function App() {
@@ -55,22 +55,19 @@ function App() {
           </Route>
         </Route>
         <Route element={<RequireAuth />}>
-          <Route element={<RequireOnboarding />}>
-            <Route path="/feed" element={<HomePage />} />
-            <Route
-              path="/community"
-              element={<CommunityPage />}
-            />
-            <Route path="/search" element={<SearchPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
-            <Route path="/share" element={<SharePage />} />
-            <Route path="/browse" element={<BrowsePage />} />
-          </Route>
+          <Route path="/feed" element={<HomePage />} />
+          <Route
+            path="/community"
+            element={<CommunityPage />}
+          />
+          <Route path="/search" element={<SearchPage />} />
+          <Route path="/messages" element={<DM />} />
+          <Route path="/settings" element={<SettingsPage />} />
+          <Route path="/share" element={<SharePage />} />
+          <Route path="/browse" element={<BrowsePage />} />
         </Route>
       </Routes>
     </BrowserRouter>
   );
 }
-
 export default App;

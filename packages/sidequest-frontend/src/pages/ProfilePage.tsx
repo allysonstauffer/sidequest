@@ -30,7 +30,7 @@ function ProfilePage({
     <section className="site-page">
       <p className="site-eyebrow">Your Profile</p>
       <h1>Profile</h1>
-      <p>Signed in as {session.user.email}</p>
+      <p>Signed in as {session.user.user_metadata.display_name}</p>
 
       <h2>Your interests</h2>
 
