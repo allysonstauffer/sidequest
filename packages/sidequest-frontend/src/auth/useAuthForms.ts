@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import type {
-  AuthCredentials,
+  AuthCredentials_SignIn,
+  AuthCredentials_SignUp,
   AuthService
 } from "./authService";
 import { getAuthLinkError } from "./authLinkError";
@@ -50,7 +51,7 @@ export function useAuthForms(service: AuthService) {
     if (confirmation?.source === source) clearConfirmation();
   }
 
-  async function signIn(credentials: AuthCredentials) {
+  async function signIn(credentials: AuthCredentials_SignIn) {
     await runAction("signin", async () => {
       setLoginNotice("");
       setSignupNotice("");
@@ -77,7 +78,7 @@ export function useAuthForms(service: AuthService) {
   }
 
   async function signUp(
-    credentials: AuthCredentials & { confirmPassword: string }
+    credentials: AuthCredentials_SignUp & { confirmPassword: string }
   ) {
     if (requestInFlight.current) return;
     setSignupNotice("");
@@ -91,6 +92,7 @@ export function useAuthForms(service: AuthService) {
     await runAction("signup", async () => {
       try {
         const result = await service.signUp({
+          user: credentials.user,
           email: credentials.email,
           password: credentials.password
         });
@@ -98,6 +100,11 @@ export function useAuthForms(service: AuthService) {
           case "account-exists":
             setSignupNotice(
               "An account with this email already exists. Log in instead."
+            );
+            break;
+          case "username-exists":
+            setSignupNotice(
+              "An account with this username already exists. Try another username."
             );
             break;
           case "confirmation-required":

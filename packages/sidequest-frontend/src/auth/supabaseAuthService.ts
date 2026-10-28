@@ -16,8 +16,9 @@ function errorMessage(error: AuthError): string {
     case "email_already_confirmed":
       return "This email is already confirmed. Log in instead.";
     case "email_exists":
-    case "user_already_exists":
       return "An account with this email already exists. Log in instead.";
+    case "user_already_exists":
+      return "An account with this username already exists. Try another username"
     default:
       return error.status === 429
         ? "Too many attempts. Please wait and try again."
@@ -63,14 +64,19 @@ export function createSupabaseAuthService(
       }
     },
 
-    async signUp({ email, password }) {
+    async signUp({ email, password, user }) {
       const submittedEmail = email.trim();
+      const username = user
       try {
         const { data, error } = await client.auth.signUp({
           email: submittedEmail,
           password,
+
           options: {
-            emailRedirectTo: getConfirmationRedirect()
+            emailRedirectTo: getConfirmationRedirect(),
+            data: {
+              display_name: username
+            }
           }
         });
         if (

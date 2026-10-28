@@ -43,7 +43,8 @@ export default function LoginPage({
     await signUp({
       email: String(form.get("email") ?? ""),
       password: String(form.get("password") ?? ""),
-      confirmPassword: String(form.get("confirmPassword") ?? "")
+      confirmPassword: String(form.get("confirmPassword") ?? ""),
+      user: String(form.get("user") ?? "")
     });
   }
 
@@ -104,6 +105,16 @@ export default function LoginPage({
         aria-busy={pendingAction === "signup"}
         aria-label="Sign up">
         <fieldset disabled={busy}>
+          <label>
+            Username
+            <input
+              name = "user"
+              type = "text"
+              autoComplete="username"
+              required
+            />
+
+          </label>
           <label>
             Email
             <input

@@ -7,7 +7,6 @@ import UserProfilePage from "./pages/UserProfilePage";
 import SiteLayout from "./components/SiteLayout";
 import HomePage from "./pages/HomePage";
 import SettingsPage from "./pages/SettingsPage";
-import MessagesPage from "./pages/MessagesPage";
 import SearchPage from "./pages/SearchPage";
 import SharePage from "./pages/SharePage";
 import BrowsePage from "./pages/BrowsePage";
@@ -19,6 +18,7 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import RequireOnboarding from "./components/RequireOnboarding";
+import DM from "./pages/DM";
 
 function App() {
   return (
@@ -62,10 +62,7 @@ function App() {
               element={<CommunityPage />}
             />
             <Route path="/search" element={<SearchPage />} />
-            <Route
-              path="/messages"
-              element={<MessagesPage />}
-            />
+            <Route path="/messages" element={<DM />} />
             <Route
               path="/settings"
               element={<SettingsPage />}
@@ -78,5 +75,4 @@ function App() {
     </BrowserRouter>
   );
 }
-
 export default App;
