@@ -1,0 +1,108 @@
+.app-shell .settings-page {
+  max-width: 1040px;
+}
+
+.app-shell .settings-sections {
+  display: grid;
+  gap: 20px;
+  max-width: 620px;
+}
+
+.app-shell .settings-card {
+  padding: 24px;
+  border: 1px solid rgba(216, 216, 246, 0.28);
+  border-radius: 18px;
+  background: #494850;
+}
+
+.app-shell .settings-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.2rem;
+}
+
+.app-shell .settings-card p {
+  margin: 0 0 18px;
+  color: #d0cddd;
+  line-height: 1.5;
+}
+
+.app-shell .settings-card p[role="status"],
+.app-shell .settings-card p[role="alert"] {
+  margin: 16px 0 0;
+}
+
+.app-shell .settings-card p[role="alert"] {
+  color: #ffb5b5;
+}
+
+.app-shell .settings-card form {
+  display: grid;
+  gap: 10px;
+}
+
+.app-shell .settings-card label {
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.app-shell .settings-card input {
+  display: block;
+  width: 100%;
+  padding: 11px 13px;
+  border: 1px solid rgba(216, 216, 246, 0.45);
+  border-radius: 10px;
+  background: #2c2c34;
+  color: #d8d8f6;
+}
+
+.app-shell .settings-card input:focus-visible,
+.app-shell .settings-card button:focus-visible,
+.app-shell .settings-card a:focus-visible {
+  outline: 2px solid #d8d8f6;
+  outline-offset: 2px;
+}
+
+.app-shell .settings-card button {
+  width: fit-content;
+  margin-top: 8px;
+  padding: 10px 16px;
+  border: 1px solid #b18fcf;
+  border-radius: 10px;
+  background: #b18fcf;
+  color: #24242a;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.app-shell .settings-card button:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.app-shell .settings-card a {
+  display: inline-block;
+  margin-top: 18px;
+  color: #d8b8f4;
+}
+
+.app-shell .settings-danger {
+  border-color: rgba(255, 148, 148, 0.5);
+}
+
+.app-shell .settings-card .settings-delete-button {
+  border-color: #ffb5b5;
+  background: #ffb5b5;
+  color: #2c2c34;
+}
+
+.app-shell .settings-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-shell .settings-card .settings-cancel-button {
+  border-color: rgba(216, 216, 246, 0.5);
+  background: transparent;
+  color: #d8d8f6;
+}

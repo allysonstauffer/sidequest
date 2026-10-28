@@ -26,5 +26,6 @@ export type ResendResult =
 export interface AuthService {
   signIn(credentials: AuthCredentials_SignIn): Promise<SignInResult>;
   signUp(credentials: AuthCredentials_SignUp): Promise<SignUpResult>;
+  isUsernameAvailable(username: string): Promise<boolean>;
   resendConfirmation(email: string): Promise<ResendResult>;
 }

@@ -84,6 +84,11 @@ export function useAuthForms(service: AuthService) {
     setSignupNotice("");
     setLoginNotice("");
     clearConfirmation();
+    const username = credentials.user.trim();
+    if (!username || username.length > 40) {
+      setSignupNotice("Username must be between 1 and 40 characters.");
+      return;
+    }
     if (credentials.password !== credentials.confirmPassword) {
       setSignupNotice("Passwords do not match.");
       return;
@@ -92,7 +97,7 @@ export function useAuthForms(service: AuthService) {
     await runAction("signup", async () => {
       try {
         const result = await service.signUp({
-          user: credentials.user,
+          user: username,
           email: credentials.email,
           password: credentials.password
         });

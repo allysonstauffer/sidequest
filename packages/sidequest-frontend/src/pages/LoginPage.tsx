@@ -1,4 +1,4 @@
-import type { FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import type { AuthService } from "../auth/authService";
@@ -23,6 +23,28 @@ export default function LoginPage({
     changeEmail
   } = useAuthForms(authService);
   const busy = pendingAction !== null;
+  const [username, setUsername] = useState("");
+  const [usernameStatus, setUsernameStatus] = useState<
+    "idle" | "checking" | "available" | "taken" | "error"
+  >("idle");
+
+  useEffect(() => {
+    const value = username.trim();
+    if (!value) return;
+    let active = true;
+    const timer = window.setTimeout(async () => {
+      try {
+        const available = await authService.isUsernameAvailable(value);
+        if (active) setUsernameStatus(available ? "available" : "taken");
+      } catch {
+        if (active) setUsernameStatus("error");
+      }
+    }, 350);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [authService, username]);
 
   async function handleSubmit(
     event: FormEvent<HTMLFormElement>
@@ -44,7 +66,7 @@ export default function LoginPage({
       email: String(form.get("email") ?? ""),
       password: String(form.get("password") ?? ""),
       confirmPassword: String(form.get("confirmPassword") ?? ""),
-      user: String(form.get("user") ?? "")
+      user: username.trim()
     });
   }
 
@@ -108,12 +130,21 @@ export default function LoginPage({
           <label>
             Username
             <input
-              name = "user"
-              type = "text"
+              name="user"
+              type="text"
               autoComplete="username"
+              value={username}
+              maxLength={40}
+              onChange={(event) => {
+                setUsername(event.target.value);
+                setUsernameStatus(event.target.value.trim() ? "checking" : "idle");
+              }}
               required
             />
-
+            {usernameStatus === "checking" && <span role="status">Checking username…</span>}
+            {usernameStatus === "available" && <span role="status">Username available.</span>}
+            {usernameStatus === "taken" && <span role="status">Username already taken.</span>}
+            {usernameStatus === "error" && <span role="status">Could not check username. Try again.</span>}
           </label>
           <label>
             Email
@@ -147,7 +178,8 @@ export default function LoginPage({
           </label>
           <button
             type="submit"
-            className="site-button site-button-primary">
+            className="site-button site-button-primary"
+            disabled={usernameStatus === "taken" || usernameStatus === "checking"}>
             {pendingAction === "signup"
               ? "Creating account…"
               : "Sign up"}

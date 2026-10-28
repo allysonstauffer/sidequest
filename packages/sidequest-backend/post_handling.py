@@ -23,6 +23,79 @@ class ProjectUpdate(BaseModel):
     description: str | None = None
 
 
+class AccountDeletion(BaseModel):
+    password: str
+
+
+@app.delete("/api/account")
+def delete_account(
+    request: AccountDeletion,
+    authorization: str | None = Header(default=None),
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in to delete your account.")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token or not request.password:
+        raise HTTPException(status_code=400, detail="Enter your current password.")
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=503, detail="Account deletion is unavailable.")
+
+    admin = create_client(url, key)
+    try:
+        user = admin.auth.get_user(token).user
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Sign in again.") from exc
+    if not user or not user.email:
+        raise HTTPException(status_code=401, detail="Sign in again.")
+
+    # Use a separate client so password verification cannot replace the admin
+    # client's service-role session before the privileged deletion call.
+    verifier = create_client(url, key)
+    try:
+        verified = verifier.auth.sign_in_with_password(
+            {"email": user.email, "password": request.password}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail="Incorrect password.") from exc
+    if not verified.user or verified.user.id != user.id:
+        raise HTTPException(status_code=403, detail="Incorrect password.")
+
+    bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
+    folder = f"images/{user.id}"
+    try:
+        storage = admin.storage.from_(bucket)
+        while True:
+            files = storage.list(folder, {"limit": 100, "offset": 0})
+            paths = [
+                f"{folder}/{item['name']}"
+                for item in files
+                if item.get("id") and item.get("name")
+            ]
+            if not paths:
+                break
+            storage.remove(paths)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not remove your uploaded files. Your account was not deleted.",
+        ) from exc
+
+    try:
+        admin.auth.admin.delete_user(str(user.id))
+    except Exception as exc:
+        logging.exception("Account deletion failed for user %s", user.id)
+        raise HTTPException(
+            status_code=502,
+            detail="Could not delete your account. Your uploaded files may have been removed.",
+        ) from exc
+
+    return {"deleted": True}
+
+
 @app.post("/api/upload")
 def upload(
     attachment: UploadFile = File(...),
