@@ -2,15 +2,18 @@ begin;
 
 create table if not exists public.communities (
   id uuid primary key default gen_random_uuid(),
-  creator_id uuid not null references auth.users(id) on delete cascade,
+  created_by uuid references auth.users(id) on delete set null,
   name text not null
     check (char_length(btrim(name)) between 1 and 100),
   description text not null default ''
     check (char_length(description) <= 1000),
-  hobby text not null
-    check (hobby in ('photography', 'gardening', 'cooking')),
+  hobby text,
   created_at timestamptz not null default now()
 );
+
+alter table public.communities
+  add column if not exists created_by uuid references auth.users(id) on delete set null,
+  add column if not exists hobby text;
 
 create index if not exists communities_created_at_idx
   on public.communities (created_at desc);
@@ -32,7 +35,7 @@ drop policy if exists "Users can create communities"
 create policy "Users can create communities"
   on public.communities for insert
   to authenticated
-  with check (creator_id = (select auth.uid()));
+  with check (created_by = (select auth.uid()));
 
 notify pgrst, 'reload schema';
 

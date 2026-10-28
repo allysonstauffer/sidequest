@@ -12,7 +12,7 @@ import "./CommunityPage.css";
 
 type Community = {
   id: string;
-  creator_id: string;
+  creator_id: string | null;
   name: string;
   description: string;
   hobby: string | null;
@@ -24,9 +24,11 @@ function parseCommunity(value: unknown): Community | null {
   const row = value as Record<string, unknown>;
   if (
     typeof row.id !== "string" ||
-    typeof row.creator_id !== "string" ||
+    (row.creator_id !== null &&
+      typeof row.creator_id !== "string") ||
     typeof row.name !== "string" ||
-    typeof row.description !== "string" ||
+    (row.description !== null &&
+      typeof row.description !== "string") ||
     (row.hobby !== null && typeof row.hobby !== "string") ||
     typeof row.created_at !== "string"
   ) {
@@ -36,7 +38,7 @@ function parseCommunity(value: unknown): Community | null {
     id: row.id,
     creator_id: row.creator_id,
     name: row.name,
-    description: row.description,
+    description: row.description ?? "",
     hobby: row.hobby,
     created_at: row.created_at
   };
@@ -74,7 +76,7 @@ function CommunityPage() {
         const { data, error } = await supabase
           .from("communities")
           .select(
-            "id,creator_id,name,description,hobby,created_at"
+            "id,creator_id:created_by,name,description,hobby,created_at"
           )
           .order("created_at", { ascending: false });
         if (error) throw new Error(error.message);
@@ -129,7 +131,7 @@ function CommunityPage() {
       const { error } = await supabase
         .from("communities")
         .insert({
-          creator_id: session.user.id,
+          created_by: session.user.id,
           name: draft.name.trim(),
           description: draft.description.trim(),
           hobby: draft.hobby || null
@@ -329,11 +331,13 @@ function CommunityPage() {
                 {community.description && (
                   <p>{community.description}</p>
                 )}
-                <Link
-                  to={`/profile/${community.creator_id}`}
-                  className="community-creator-link">
-                  View creator profile
-                </Link>
+                {community.creator_id && (
+                  <Link
+                    to={`/profile/${community.creator_id}`}
+                    className="community-creator-link">
+                    View creator profile
+                  </Link>
+                )}
               </article>
             ))}
           </div>
