@@ -260,8 +260,10 @@ before using this version of the frontend; it adds a
 `beginner_friendly` boolean that defaults to `false` for
 existing and new records. The Share form lets an author mark a
 post as beginner-friendly. Discover filters the loaded projects
-using that database field. Its community cards remain sample
-content.
+using that database field. Project cards show either
+“Beginner-Friendly” or “Experience Recommended”; the latter
+appears when the field is false, including for existing records.
+Its community cards remain sample content.
 
 The migration does not change `projects` row-level security
 policies. Discover can only show records allowed by the

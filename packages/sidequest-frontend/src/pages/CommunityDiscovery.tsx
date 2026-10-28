@@ -124,7 +124,11 @@ function DiscoveryContentCard({
           <span className="beginner-tag">
             Beginner-Friendly
           </span>
-        ) : null}
+        ) : (
+          <span className="experience-tag">
+            Experience Recommended
+          </span>
+        )}
       </div>
     </article>
   );

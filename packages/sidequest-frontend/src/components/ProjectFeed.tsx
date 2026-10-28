@@ -7,6 +7,7 @@ type Project = {
   title: string;
   description: string | null;
   media_urls: string[] | null;
+  beginner_friendly: boolean;
   created_at: string;
 };
 
@@ -15,10 +16,17 @@ type ProjectFeedProps = {
   accessToken?: string;
 };
 
-export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps) {
+export default function ProjectFeed({
+  authorId,
+  accessToken
+}: ProjectFeedProps) {
   const [projects, setProjects] = useState<Project[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
-  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "error"
+  >("loading");
+  const [deletingId, setDeletingId] = useState<string | null>(
+    null
+  );
   const [deleteNotice, setDeleteNotice] = useState("");
 
   useEffect(() => {
@@ -28,10 +36,14 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
       try {
         let query = supabase
           .from("projects")
-          .select("id,title,description,media_urls,created_at");
+          .select(
+            "id,title,description,media_urls,beginner_friendly,created_at"
+          );
         if (authorId) query = query.eq("author_id", authorId);
         query = query.order("created_at", { ascending: false });
-        const { data, error } = await (authorId ? query : query.limit(20));
+        const { data, error } = await (authorId
+          ? query
+          : query.limit(20));
 
         if (!active) return;
         if (error) {
@@ -53,22 +65,34 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
 
   async function deleteProject(project: Project) {
     if (!accessToken || !authorId || deletingId) return;
-    if (!window.confirm(`Delete "${project.title}"? This cannot be undone.`)) return;
+    if (
+      !window.confirm(
+        `Delete "${project.title}"? This cannot be undone.`
+      )
+    )
+      return;
 
     setDeletingId(project.id);
     setDeleteNotice("");
     try {
-      const response = await fetch(`/api/upload?id=${encodeURIComponent(project.id)}`, {
-        method: "DELETE",
-        headers: { Authorization: `Bearer ${accessToken}` }
-      });
+      const response = await fetch(
+        `/api/upload?id=${encodeURIComponent(project.id)}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${accessToken}` }
+        }
+      );
       const result = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(
-          typeof result?.detail === "string" ? result.detail : "nope"
+          typeof result?.detail === "string"
+            ? result.detail
+            : "nope"
         );
       }
-      setProjects((current) => current.filter((item) => item.id !== project.id));
+      setProjects((current) =>
+        current.filter((item) => item.id !== project.id)
+      );
       if (result?.media_cleanup === false) {
         setDeleteNotice("post deleted, photo still there");
       }
@@ -82,8 +106,12 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
   }
 
   return (
-    <section className="project-feed" aria-labelledby="project-feed-title">
-      <h2 id="project-feed-title">{authorId ? "Your posts" : "Latest projects"}</h2>
+    <section
+      className="project-feed"
+      aria-labelledby="project-feed-title">
+      <h2 id="project-feed-title">
+        {authorId ? "Your posts" : "Latest projects"}
+      </h2>
       {status === "loading" && <p>Loading projects…</p>}
       {status === "error" && (
         <p role="alert">if this shows up lmk, cause cooked</p>
@@ -95,7 +123,9 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
       {status === "ready" && projects.length > 0 && (
         <div className="project-feed-list">
           {projects.map((project) => (
-            <article className="project-feed-card" key={project.id}>
+            <article
+              className="project-feed-card"
+              key={project.id}>
               {project.media_urls?.[0] && (
                 <img
                   src={project.media_urls[0]}
@@ -105,9 +135,22 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
               )}
               <div className="project-feed-copy">
                 <h3>{project.title}</h3>
-                {project.description && <p>{project.description}</p>}
+                {project.beginner_friendly ? (
+                  <span className="project-beginner-tag">
+                    Beginner-Friendly
+                  </span>
+                ) : (
+                  <span className="project-experience-tag">
+                    Experience Recommended
+                  </span>
+                )}
+                {project.description && (
+                  <p>{project.description}</p>
+                )}
                 <time dateTime={project.created_at}>
-                  {new Date(project.created_at).toLocaleDateString()}
+                  {new Date(
+                    project.created_at
+                  ).toLocaleDateString()}
                 </time>
                 {authorId && accessToken && (
                   <button
@@ -115,7 +158,9 @@ export default function ProjectFeed({ authorId, accessToken }: ProjectFeedProps)
                     type="button"
                     disabled={deletingId !== null}
                     onClick={() => void deleteProject(project)}>
-                    {deletingId === project.id ? "deleting" : "delete?"}
+                    {deletingId === project.id
+                      ? "deleting"
+                      : "delete?"}
                   </button>
                 )}
               </div>
