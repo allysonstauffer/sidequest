@@ -24,6 +24,7 @@ type SidequestEventsProps = {
   viewerId: string;
   hostId?: string;
   allowCreate?: boolean;
+  creationOnly?: boolean;
   title: string;
 };
 
@@ -170,6 +171,7 @@ export default function SidequestEvents({
   viewerId,
   hostId,
   allowCreate = false,
+  creationOnly = false,
   title
 }: SidequestEventsProps) {
   const { categories, status: categoriesStatus } =
@@ -188,7 +190,7 @@ export default function SidequestEvents({
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [hobbyFilter, setHobbyFilter] = useState("");
   const [skillFilter, setSkillFilter] = useState("");
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [showCreateForm, setShowCreateForm] = useState(creationOnly);
   const [isSaving, setIsSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(
     null
@@ -218,6 +220,11 @@ export default function SidequestEvents({
         return;
       }
       if (categoriesStatus !== "ready") return;
+      if (creationOnly) {
+        setEvents([]);
+        setStatus("ready");
+        return;
+      }
       setStatus("loading");
       try {
         const createQuery = () => {
@@ -330,6 +337,7 @@ export default function SidequestEvents({
     };
   }, [
     categoriesStatus,
+    creationOnly,
     debouncedSearch,
     hobbyFilter,
     hostId,
@@ -402,8 +410,11 @@ export default function SidequestEvents({
       if (error) throw new Error(error.message);
 
       form.reset();
-      setShowCreateForm(false);
-      setReloadKey((value) => value + 1);
+      setNotice("Sidequest created.");
+      if (!creationOnly) {
+        setShowCreateForm(false);
+        setReloadKey((value) => value + 1);
+      }
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -593,15 +604,17 @@ export default function SidequestEvents({
       {allowCreate ? (
         <div className="sidequest-events-heading">
           <h2 id="sidequest-events-title">{title}</h2>
-          <button
-            className="sidequest-create-button"
-            type="button"
-            onClick={() => {
-              setShowCreateForm((current) => !current);
-              setNotice("");
-            }}>
-            {showCreateForm ? "Cancel" : "Create a sidequest"}
-          </button>
+          {!creationOnly ? (
+            <button
+              className="sidequest-create-button"
+              type="button"
+              onClick={() => {
+                setShowCreateForm((current) => !current);
+                setNotice("");
+              }}>
+              {showCreateForm ? "Cancel" : "Create a sidequest"}
+            </button>
+          ) : null}
         </div>
       ) : null}
 
@@ -669,10 +682,14 @@ export default function SidequestEvents({
         </form>
       ) : null}
 
-      {!allowCreate ? (
+      {notice ? <p role="alert">{notice}</p> : null}
+
+      {!creationOnly && !allowCreate ? (
         <h2 id="sidequest-events-title">{title}</h2>
       ) : null}
 
+      {!creationOnly ? (
+        <>
       <div
         className="sidequest-event-filters"
         aria-label="Filter upcoming sidequests">
@@ -728,7 +745,6 @@ export default function SidequestEvents({
           </button>
         ) : null}
       </div>
-      {notice ? <p role="alert">{notice}</p> : null}
       {status === "loading" ? (
         <p role="status">Loading sidequests…</p>
       ) : status === "error" ? (
@@ -923,6 +939,8 @@ export default function SidequestEvents({
           ))}
         </div>
       )}
+        </>
+      ) : null}
     </section>
   );
 }

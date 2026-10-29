@@ -47,7 +47,7 @@ function HomePage() {
             className="header-actions"
             aria-label="Header actions">
             <Link
-              to="/profile"
+              to="/share"
               className="icon-button small-button"
               aria-label="Add">
               <img src={imgIcon3} alt="" />

@@ -242,7 +242,7 @@ export default function CreatorProfile({
         </ul>
       )}
       {editable && !editing && (
-        <button type="button" className="site-button" onClick={startEditing}>Edit creator profile</button>
+        <button type="button" className="site-button" onClick={startEditing}>Edit profile</button>
       )}
       {notice && <p role="status" className="site-notice">{notice}</p>}
       {editable && editing && (

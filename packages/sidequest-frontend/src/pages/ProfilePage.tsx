@@ -80,14 +80,10 @@ function ProfilePage({
       <SidequestEvents
         viewerId={session.user.id}
         hostId={session.user.id}
-        allowCreate
         title="My Upcoming Sidequests"
       />
 
       <section aria-labelledby="project-feed-title">
-        <Link to="/share" className="site-text-link">
-          Share a project
-        </Link>
         <ProjectFeed
           authorId={session.user.id}
           accessToken={session.access_token}

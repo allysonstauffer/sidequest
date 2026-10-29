@@ -67,7 +67,7 @@ function DashboardLayout({
         </div>
 
         <div className="sidebar-footer">
-          <Link to="/profile" className="cta-button">
+          <Link to="/share" className="cta-button">
             <span>Share a sidequest</span>
           </Link>
 

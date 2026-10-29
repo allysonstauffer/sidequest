@@ -2,6 +2,7 @@ import { useNavigate } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
 import { useState, type FormEvent } from "react";
 import { useAuth } from "../auth/useAuth";
+import SidequestEvents from "../components/SidequestEvents";
 
 function SharePage() {
   const [notice, setNotice] = useState("");
@@ -58,6 +59,7 @@ function SharePage() {
 
   return (
     <DashboardLayout>
+
       <div className="page-shell">
         <div className="page-header">
           <div>
@@ -106,6 +108,15 @@ function SharePage() {
             </p>
           )}
         </form>
+
+        <div className="share-sidequest">
+          <SidequestEvents
+            viewerId={session?.user.id ?? ""}
+            title="Create a SideQuest"
+            allowCreate
+            creationOnly
+          />
+        </div>
       </div>
     </DashboardLayout>
   );

@@ -737,6 +737,19 @@
   font-size: 32px;
 }
 
+.app-shell .share-sidequest .sidequest-events {
+  margin-top: 40px;
+}
+
+.app-shell .share-sidequest .sidequest-events h2 {
+  margin: 0;
+  font-size: 32px;
+}
+
+.app-shell .share-sidequest .sidequest-events-heading {
+  margin-bottom: 28px;
+}
+
 .app-shell .primary-link,
 .app-shell .primary-button,
 .app-shell .secondary-button {
