@@ -6,12 +6,145 @@ import { supabaseAuthService } from "../auth/supabaseAuthService";
 import { useAuthForms } from "../auth/useAuthForms";
 import { supabase } from "../lib/supabase";
 
+type TotpFactor = {
+  id: string;
+  friendly_name?: string;
+};
+
+function TotpChallenge() {
+  const [factors, setFactors] = useState<TotpFactor[]>([]);
+  const [factorId, setFactorId] = useState("");
+  const [code, setCode] = useState("");
+  const [status, setStatus] = useState<
+    "loading" | "ready" | "verifying" | "verified" | "error"
+  >("loading");
+  const [notice, setNotice] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    async function loadFactors() {
+      const { data, error } = await supabase.auth.mfa.listFactors();
+      if (!active) return;
+      if (error) {
+        setNotice(error.message);
+        setStatus("error");
+        return;
+      }
+      const totpFactors = data.totp.map((factor) => ({
+        id: factor.id,
+        friendly_name: factor.friendly_name
+      }));
+      if (totpFactors.length === 0) {
+        setNotice("No verified authenticator was found for this account.");
+        setStatus("error");
+        return;
+      }
+      setFactors(totpFactors);
+      setFactorId(totpFactors[0].id);
+      setStatus("ready");
+    }
+    void loadFactors();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function verifyTotp(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!factorId || code.length !== 6 || status === "verifying") return;
+    setStatus("verifying");
+    setNotice("");
+    const { error } = await supabase.auth.mfa.challengeAndVerify({
+      factorId,
+      code
+    });
+    if (error) {
+      setNotice(
+        error.status === 429
+          ? "Too many attempts. Wait a moment and try again."
+          : "That authentication code is invalid or expired."
+      );
+      setCode("");
+      setStatus("ready");
+      return;
+    }
+    setStatus("verified");
+    setNotice("Code verified. Redirecting…");
+  }
+
+  async function signOutAndSwitchAccount() {
+    await supabase.auth.signOut({ scope: "local" });
+  }
+
+  return (
+    <section className="site-page">
+      <p className="site-eyebrow">Two-factor authentication</p>
+      <h1>Enter your authentication code</h1>
+      <p>Open your authenticator app and enter the current six digit code.</p>
+      {status === "loading" ? (
+        <p role="status">Loading your authenticator…</p>
+      ) : status === "error" ? (
+        <p className="site-notice" role="alert">{notice}</p>
+      ) : (
+        <form className="site-form" onSubmit={(event) => void verifyTotp(event)}>
+          {factors.length > 1 && (
+            <label>
+              Authenticator
+              <select
+                value={factorId}
+                disabled={status === "verifying" || status === "verified"}
+                onChange={(event) => setFactorId(event.target.value)}>
+                {factors.map((factor, index) => (
+                  <option key={factor.id} value={factor.id}>
+                    {factor.friendly_name || `Authenticator ${index + 1}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            Authentication code
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              value={code}
+              maxLength={6}
+              disabled={status === "verifying" || status === "verified"}
+              onChange={(event) => {
+                setCode(event.target.value.replace(/\D/g, "").slice(0, 6));
+                setNotice("");
+              }}
+              autoFocus
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            className="site-button site-button-primary"
+            disabled={code.length !== 6 || status === "verifying" || status === "verified"}>
+            {status === "verifying" ? "Verifying…" : "Verify code"}
+          </button>
+          {notice && <p className="site-notice" role="status">{notice}</p>}
+        </form>
+      )}
+      <button
+        type="button"
+        className="site-button"
+        disabled={status === "verifying" || status === "verified"}
+        onClick={() => void signOutAndSwitchAccount()}>
+        Use another account
+      </button>
+    </section>
+  );
+}
+
 export default function LoginPage({
   authService = supabaseAuthService
 }: {
   authService?: AuthService;
 }) {
-  const { session, loading } = useAuth();
+  const { session, loading, mfaStatus } = useAuth();
   const {
     pendingAction,
     loginNotice,
@@ -94,7 +227,26 @@ export default function LoginPage({
     }
   }
 
-  if (loading) return <p role="status">Loading…</p>;
+  if (loading || (session && mfaStatus === "checking")) {
+    return <p role="status">Checking your account…</p>;
+  }
+  if (session && mfaStatus === "required") {
+    return <TotpChallenge />;
+  }
+  if (session && mfaStatus === "error") {
+    return (
+      <section className="site-page">
+        <h1>Unable to verify account security</h1>
+        <p role="alert">Please sign in again and retry.</p>
+        <button
+          type="button"
+          className="site-button"
+          onClick={() => void supabase.auth.signOut({ scope: "local" })}>
+          Sign out
+        </button>
+      </section>
+    );
+  }
   if (session) return <Navigate to="/feed" replace />;
   return (
     <section className="site-page">

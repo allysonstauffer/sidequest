@@ -106,3 +106,14 @@
   background: transparent;
   color: #d8d8f6;
 }
+
+.app-shell .settings-mfa-enrollment {
+  display: grid;
+  gap: 12px;
+}
+
+.app-shell .settings-mfa-enrollment img {
+  width: min(100%, 240px);
+  border-radius: 10px;
+  background: #ffffff;
+}

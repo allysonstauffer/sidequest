@@ -6,6 +6,123 @@ import { supabase } from "../lib/supabase";
 import { isUsernameAvailable } from "../auth/usernameAvailability";
 import "./SettingsPage.css";
 
+function EnrollMFA({
+  onEnrolled,
+  onCancelled
+}: {
+  onEnrolled: () => void;
+  onCancelled: () => void;
+}) {
+  const [factorId, setFactorId] = useState("");
+  const [qr, setQR] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [verifying, setVerifying] = useState(false);
+  const [cancelling, setCancelling] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function enroll() {
+      const { data, error: enrollError } =
+        await supabase.auth.mfa.enroll({ factorType: "totp" });
+      if (!active) return;
+      setLoading(false);
+      if (enrollError) {
+        setError(enrollError.message);
+        return;
+      }
+      setFactorId(data.id);
+      setQR(data.totp.qr_code);
+    }
+    void enroll();
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  async function enableMFA() {
+    if (!factorId || !verifyCode || verifying) return;
+    setVerifying(true);
+    setError("");
+    try {
+      const challenge = await supabase.auth.mfa.challenge({ factorId });
+      if (challenge.error) throw challenge.error;
+      const verify = await supabase.auth.mfa.verify({
+        factorId,
+        challengeId: challenge.data.id,
+        code: verifyCode
+      });
+      if (verify.error) throw verify.error;
+      onEnrolled();
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "Unable to enable two-factor authentication."
+      );
+    } finally {
+      setVerifying(false);
+    }
+  }
+
+  async function cancelMFA() {
+    if (verifying || cancelling) return;
+    if (!factorId) {
+      onCancelled();
+      return;
+    }
+    setCancelling(true);
+    setError("");
+    const { error: unenrollError } =
+      await supabase.auth.mfa.unenroll({ factorId });
+    if (unenrollError) {
+      setError(unenrollError.message);
+      setCancelling(false);
+      return;
+    }
+    onCancelled();
+  }
+
+  return (
+    <div className="settings-mfa-enrollment">
+      {error && <p role="alert">{error}</p>}
+      {loading ? (
+        <p role="status">Generating your 2FA code…</p>
+      ) : qr ? (
+        <>
+          <img src={qr} alt="QR code for setting up two-factor authentication" />
+          <label htmlFor="settings-mfa-code">Verification code</label>
+          <input
+            id="settings-mfa-code"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            value={verifyCode}
+            onChange={(event) =>
+              setVerifyCode(event.target.value.replace(/\D/g, "").slice(0, 6))
+            }
+          />
+          <div className="settings-actions">
+            <button
+              type="button"
+              disabled={verifying || verifyCode.length !== 6}
+              onClick={() => void enableMFA()}>
+              {verifying ? "Enabling…" : "Enable 2FA"}
+            </button>
+            <button
+              type="button"
+              className="settings-cancel-button"
+              disabled={verifying || cancelling}
+              onClick={() => void cancelMFA()}>
+              {cancelling ? "Cancelling…" : "Cancel"}
+            </button>
+          </div>
+        </>
+      ) : null}
+    </div>
+  );
+}
+
 function SettingsPage() {
   const { session } = useAuth();
   const navigate = useNavigate();
@@ -23,6 +140,8 @@ function SettingsPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deletePassword, setDeletePassword] = useState("");
   const [deleteConfirmation, setDeleteConfirmation] = useState("");
+  const [mfaOpen, setMfaOpen] = useState(false);
+  const [mfaNotice, setMfaNotice] = useState("");
 
   useEffect(() => {
     const value = username.trim();
@@ -41,7 +160,6 @@ function SettingsPage() {
       window.clearTimeout(timer);
     };
   }, [username, currentUsername]);
-
   async function saveUsername(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const nextUsername = username.trim();
@@ -282,6 +400,30 @@ function SettingsPage() {
               </form>
             )}
             {deleteNotice && <p role="alert">{deleteNotice}</p>}
+          </section>
+          <section className="settings-card" aria-labelledby="2fa-heading">
+            <h3 id="2fa-heading">Set up 2FA</h3>
+            <p>Secure your account</p>
+            {!mfaOpen ? (
+              <button
+                type="button"
+                className="show-code"
+                onClick={() => {
+                  setMfaNotice("");
+                  setMfaOpen(true);
+                }}>
+                Show 2FA code
+              </button>
+            ) : (
+              <EnrollMFA
+                onEnrolled={() => {
+                  setMfaOpen(false);
+                  setMfaNotice("Two-factor authentication enabled.");
+                }}
+                onCancelled={() => setMfaOpen(false)}
+              />
+            )}
+            {mfaNotice && <p role="status">{mfaNotice}</p>}
           </section>
         </div>
       </main>

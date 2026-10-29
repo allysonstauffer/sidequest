@@ -5,9 +5,9 @@ import ProjectFeed from "../components/ProjectFeed";
 import SidequestEvents from "../components/SidequestEvents";
 import { useAuth } from "../auth/useAuth";
 const imgIcon3 =
-    "../public/img/plus.png";
+    "/img/plus.png";
 const imgIcon4 =
-  "../public/img/messages.png";
+  "/img/messages.png";
 function getTimeOfDay(
   date: Date = new Date()
 ): "Morning" | "Afternoon" | "Evening" | "Night" {
