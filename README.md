@@ -1,64 +1,57 @@
 # SideQuest
 
-SideQuest is a social platform for hobbies and personal
-projects. It helps people share what they are making, discover
-interest-based communities and events, and meet others who enjoy
-the same things.
+SideQuest is a social platform concept for hobbies and personal
+projects. It is intended to help people share what they are
+making, discover interests and communities, and connect with
+others who enjoy the same things.
 
-The idea behind the product is simple: not every meaningful
-social connection starts with work or a polished achievement.
-SideQuest is for the things people do because they are curious,
-creative, or having fun.
+Not every meaningful social connection starts with work or a
+polished achievement. SideQuest is for the things people do
+because they are curious, creative, or having fun.
 
 ## Who it is for
 
-SideQuest is intended for hobbyists at every experience level:
+The intended audience is hobbyists at every experience level:
 
-- People just getting started who want ideas, encouragement, or
-  a community to learn with.
+- People just getting started who want ideas or encouragement.
 - Makers and creatives who want to share projects and works in
   progress.
-- People looking for others to practice, collaborate, or spend
-  time with around a shared interest.
-- Community members and event hosts who want to bring people
-  together around a hobby.
+- People who want to connect or collaborate around a shared
+  interest.
+- Community members who want to discover others with similar
+  interests.
 
-This describes the intended audience, not a claim about the size
-or activity of a production user base.
+This describes the product's intended users, not the size or
+activity of a production user base.
 
-## What the product does
+## Product direction and current state
 
-- **Share projects:** Publish image-based hobby projects, edit
-  or delete your own posts, and browse recent work.
-- **Build a hobby profile:** Choose interests and experience
-  levels during onboarding, then display them on your profile.
-- **Find people:** Browse member profiles and follow people
-  whose projects you want in your feed.
-- **Discover communities:** Find communities by hobby, create
-  communities, and join or leave them. Signed-in users can add
-  hobby categories.
-- **Meet up:** Browse upcoming SideQuest events, filter them by
-  interest or skill level, host events, and RSVP.
-- **Explore ideas:** See starter activities matched to selected
-  hobbies and experience levels.
-- **Manage an account:** Sign up and log in with email, confirm
-  an address, recover a password, and update profile settings.
-- **Message members:** A direct-message interface is present;
-  see [Current limitations](#current-limitations) for its
-  database prerequisites.
+The product vision is to bring project sharing, interest
+discovery, and community connection into one welcoming social
+space. The current `main` branch is an early prototype; not
+every destination in the interface is connected to working
+product functionality.
 
-The app is evolving. The list above describes functionality
-represented in the current code, not a promise that every screen
-is production-ready or configured in every environment.
+| Area                                              | Current state in `main`                                                                                                                           |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Accounts                                          | Email/password signup and login, confirmation email flow, logout, and password recovery through Supabase Auth.                                    |
+| Projects                                          | Signed-in users can upload an image with a title and description. The feed shows recent projects, and a user can view and delete their own posts. |
+| Profiles                                          | A basic signed-in profile displays the account email and the user's posts.                                                                        |
+| Landing and discovery                             | A public landing page introduces the product and displays hobby/community discovery content.                                                      |
+| Community, search, messages, settings, and browse | These destinations are present in the interface, but are placeholders or have limited functionality in this branch.                               |
+
+Community discovery and connection are central to the product
+direction, but the current branch should not be read as a
+complete social network or production-ready service.
 
 ## Why SideQuest matters
 
 Hobbies are a way to learn, make things, and connect outside of
-work or school. SideQuest is designed to make those interests
-easier to share and easier to discover: a person can post a
-project, find a community, follow other makers, or join an event
-centered on something they already enjoy. The focus is shared
-interest and participation, rather than professional networking.
+work or school. SideQuest aims to make those interests easier to
+share and discover: someone can show a project, find
+inspiration, and eventually meet others around an activity they
+already enjoy. Its focus is shared interest and participation
+rather than professional networking.
 
 ## Technology
 
@@ -71,40 +64,34 @@ interest and participation, rather than professional networking.
 | Data and authentication | Supabase Auth, PostgreSQL, Supabase JavaScript and Python clients |
 | Developer tooling       | npm workspaces, TypeScript, ESLint, Prettier                      |
 
-## How it fits together
+## Architecture
 
 This repository is an npm-workspace monorepo with a React
 single-page app and a small FastAPI service:
 
-1. The frontend uses Supabase directly for authentication and
-   most database-backed product features.
-2. The FastAPI service handles project image uploads and
-   owner-authorized project edits and deletions. The Vite
-   development server proxies `/api` requests to
-   `http://127.0.0.1:8000`.
-3. Supabase provides the hosted database, authentication, and
-   object storage. Database access depends on the schema and Row
-   Level Security (RLS) policies configured in the Supabase
-   project.
-4. SQL changes that are tracked by this repository live in
-   `supabase/migrations/`.
+1. The frontend uses Supabase for authentication and reads
+   project records from the Supabase database.
+2. The FastAPI service handles image uploads and project
+   deletion. During local development, Vite proxies `/api`
+   requests to `http://127.0.0.1:8000`.
+3. Supabase provides hosted authentication, PostgreSQL, and
+   object storage. The database schema, access policies, and
+   storage configuration must be set up in the Supabase project.
 
-For uploads, the backend validates JPEG, PNG, or WebP input,
-limits the source to 10 MB and 25 megapixels, corrects image
-orientation, and stores a resized JPEG in Supabase Storage. The
-default bucket name is `project-media`.
+The upload API accepts JPEG, PNG, or WebP images, limits source
+files to 10 MB and 25 megapixels, corrects image orientation,
+and stores a resized JPEG in Supabase Storage. The default
+bucket is `project-media`.
 
 ## Repository map
 
-| Path                           | Contents                                                    |
-| ------------------------------ | ----------------------------------------------------------- |
-| `packages/sidequest-frontend/` | React app, routes, UI, auth integration, and frontend tests |
-| `packages/sidequest-backend/`  | FastAPI upload and project-management API                   |
-| `supabase/migrations/`         | Incremental SQL migrations for app features                 |
-| `scripts/`                     | Project scripts                                             |
-| `CONTRIBUTING.md`              | Branch, style, and commit conventions                       |
-| `project-context.md`           | Product context and confirmed constraints for contributors  |
-| `SRD - SideQuest.docx`         | Product requirements document                               |
+| Path                           | Contents                                                              |
+| ------------------------------ | --------------------------------------------------------------------- |
+| `packages/sidequest-frontend/` | React app, routes, UI, authentication integration, and frontend tests |
+| `packages/sidequest-backend/`  | FastAPI upload and project-deletion API                               |
+| `CONTRIBUTING.md`              | Branch, style, and commit conventions                                 |
+| `project-context.md`           | Product context and contributor constraints                           |
+| `SRD - SideQuest.docx`         | Product requirements document                                         |
 
 ## Get started locally
 
@@ -112,8 +99,8 @@ default bucket name is `project-media`.
 
 - Node.js and npm
 - Python 3
-- A Supabase project with the required database, Auth, and
-  Storage configuration
+- A Supabase project with Auth, the expected database tables,
+  and Storage configured
 
 ### 1. Install dependencies
 
@@ -170,47 +157,25 @@ and email confirmation. Set the local site URL to
 - `http://localhost:5173/reset-password`
 
 Create/configure the `project-media` Storage bucket (or set
-`SUPABASE_STORAGE_BUCKET` to your bucket). Configure Supabase
-Auth email delivery and Storage permissions for your
-environment. For production, use your deployed site's URLs and
-appropriate credentials.
+`SUPABASE_STORAGE_BUCKET` to your bucket). Configure Auth email
+delivery and Storage permissions for your environment. For
+production, use your deployed site's URLs and appropriate
+credentials.
 
 ### 3. Prepare the database
 
-The SQL files in `supabase/migrations/` are **incremental
-feature migrations**, not a complete schema for a brand-new
-Supabase project. They expect the app's base tables and policies
-to exist, including `public.profiles`, `public.user_hobbies`,
-and `public.projects`. Ensure the foundational schema is
-installed first, then apply the repository migrations in
-filename order using your team's Supabase migration workflow or
-the SQL Editor:
+The `main` branch does not include a complete database bootstrap
+or tracked Supabase migration set. Configure the schema and
+access policies in your Supabase project before using
+database-backed features.
 
-1. `202610150001_save_my_preferences.sql` — saves hobby
-   preferences and onboarding completion.
-2. `202610280001_beginner_friendly_projects.sql` — adds a legacy
-   project field.
-3. `202610280002_project_feed_filters.sql` — adds project hobby,
-   skill-level, and display-name fields.
-4. `202610280003_sidequest_events.sql` — creates events and RSVP
-   tables with RLS policies.
-5. `202610280004_user_follows.sql` — creates the one-way follow
-   relationship.
-6. `202610280005_communities.sql` — creates the public community
-   directory.
-7. `202610280006_community_hobby_optional.sql` — allows
-   communities without a hobby.
-8. `202610280007_hobby_categories.sql` — creates the shared
-   hobby catalogue and updates hobby references.
-9. `202610280008_community_memberships.sql` — creates community
-   membership records.
-
-The initial hobby catalogue seeds Photography, Gardening, and
-Cooking. Hobby categories and experience levels are used by both
-application code and database constraints, so changes should be
-coordinated across the frontend and migrations. See the
-[frontend README](./packages/sidequest-frontend/README.md) for
-additional authentication and preference setup notes.
+At minimum, the project upload and feed code expects a
+`public.projects` table with `id`, `author_id`, `title`,
+`description`, `media_urls`, and `created_at` fields.
+Authentication is provided by Supabase Auth. Set appropriate
+database permissions and Row Level Security (RLS) policies; the
+frontend route guards are not a replacement for database
+authorization.
 
 ### 4. Start the app
 
@@ -237,33 +202,26 @@ Supabase-backed features also require the database setup above.
 Run these from the repository root:
 
 ```sh
-npm run dev --workspace=sidequest-frontend  # Start Vite
-npm run dev                                 # Start FastAPI (activate .venv first)
-npm run lint --workspace=sidequest-frontend # Lint frontend
+npm run dev --workspace=sidequest-frontend   # Start Vite
+npm run dev                                  # Start FastAPI (activate .venv first)
+npm run lint --workspace=sidequest-frontend  # Lint frontend
 npm run build --workspace=sidequest-frontend # Type-check and build frontend
-npm test --workspace=sidequest-frontend     # Run frontend tests
-npm run format                              # Format supported repository files
+npm run test:auth --workspace=sidequest-frontend # Run auth tests
+npm run format                               # Format supported repository files
 ```
 
 ## Current limitations
 
-- The migrations in this repository do not provision every
-  foundational table or policy. A fresh Supabase project needs
-  its base schema configured before applying the feature
-  migrations.
-- The direct-message UI calls Supabase tables (`rooms`,
-  `room_participants`, and `messages`) and RPCs
-  (`search_chat_users` and `chat_participant_names`). Their
-  schema and function migrations are not included in the
-  currently tracked migration set; messaging requires those
-  objects to be provisioned separately.
-- The starter-activity recommendations are separate from
-  community-posted projects; they should not be assumed to be a
-  personalized recommendation engine over all project content.
-- Production deployment, live-user metrics, and operational
-  policies are not specified here. Verify environment
-  configuration, database access rules, and email/storage setup
-  before deploying.
+- The database schema and RLS setup required by the app are not
+  provisioned by migrations tracked on `main`; arrange the
+  Supabase setup before expecting account-backed project
+  features to work.
+- Community, search, messages, settings, and browse screens are
+  incomplete placeholders in this branch.
+- The project is an evolving prototype. Production deployment,
+  live-user metrics, and operational policies are not specified
+  here. Verify environment configuration, database access rules,
+  and email/storage setup before deploying.
 
 ## Contributing
 
