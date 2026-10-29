@@ -85,77 +85,28 @@
   gap: 18px;
 }
 
-.app-shell .brand-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-}
-
-.app-shell .brand-mark {
-  width: 44px;
-  height: 44px;
-  border-radius: 999px;
-  border: 1px solid rgba(177, 143, 207, 0.9);
-  background: #2c2c34;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-}
-
-.app-shell .brand-graphic {
+.app-shell .brand-logo {
   position: relative;
-  width: 24px;
-  height: 24px;
-}
-
-.app-shell .brand-graphic img {
-  position: absolute;
-  inset: 0;
-}
-
-.app-shell .brand-ellipse,
-.app-shell .brand-inner {
+  display: block;
   width: 100%;
-  height: 100%;
+  height: 48px;
+  overflow: hidden;
+  border-radius: 12px;
 }
 
-.app-shell .brand-line {
+.app-shell .brand-logo img {
   position: absolute;
-  inset: 0;
+  top: 50%;
+  left: 50%;
+  width: 240px;
+  max-width: none;
+  height: 240px;
+  transform: translate(-50%, -50%);
 }
 
-.app-shell .brand-line-a {
-  transform: rotate(90deg) scaleX(1.1);
-}
-
-.app-shell .brand-line-b {
-  transform: translateX(0) rotate(0deg);
-}
-
-.app-shell .brand-letter {
-  position: absolute;
-  font-size: 9px;
-  font-weight: 700;
-  color: #b18fcf;
-  line-height: 1;
-}
-
-.app-shell .brand-letter-s {
-  top: 4px;
-  left: 6px;
-}
-
-.app-shell .brand-letter-q {
-  bottom: 3px;
-  right: 4px;
-}
-
-.app-shell .brand-name {
-  color: #d8d8f6;
-  font-size: 28px;
-  letter-spacing: -0.04em;
-  font-weight: 400;
+.app-shell .brand-logo:focus-visible {
+  outline: 2px solid #b18fcf;
+  outline-offset: 3px;
 }
 
 .app-shell .nav-list {

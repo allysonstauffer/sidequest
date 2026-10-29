@@ -33,14 +33,15 @@ function DashboardLayout({
     <div className="app-shell">
       <aside className="sidebar">
         <div className="brand-block">
-          <div className="brand-row">
-            <div
-              className="brand-mark"
-              aria-label="SideQuest logo">
-              <div className="brand-graphic"></div>
-            </div>
-            <div className="brand-name">SideQuest</div>
-          </div>
+          <Link
+            className="brand-logo"
+            to="/feed"
+            aria-label="Go to your feed">
+            <img
+              src="/branding/sidequest-wordmark-dark.png"
+              alt="SideQuest"
+            />
+          </Link>
 
           <nav
             className="nav-list"
