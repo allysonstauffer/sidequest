@@ -6,6 +6,7 @@ import { usePreferences } from "../preferences/usePreferences";
 import { useHobbyCategories } from "../hobbies/useHobbyCategories";
 import ProjectFeed from "../components/ProjectFeed";
 import SidequestEvents from "../components/SidequestEvents";
+import CreatorProfile from "../components/CreatorProfile";
 interface Props {
   preferenceService?: PreferenceService;
 }
@@ -30,11 +31,7 @@ function ProfilePage({
 
   return (
     <section className="site-page">
-      <p className="site-eyebrow">Your Profile</p>
-      <h1>Profile</h1>
-      <p>
-        Signed in as {session.user.user_metadata.display_name}
-      </p>
+      <CreatorProfile userId={session.user.id} editable />
 
       <section aria-labelledby="profile-interests-heading">
         <h2 id="profile-interests-heading">Your interests</h2>

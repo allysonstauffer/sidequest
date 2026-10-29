@@ -62,6 +62,7 @@ export default function ProjectFeed({
   title
 }: ProjectFeedProps) {
   const [projects, setProjects] = useState<Project[]>([]);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
@@ -119,14 +120,27 @@ export default function ProjectFeed({
         const { data, error } = await query;
         if (error) throw new Error(error.message);
 
+        const loadedProjects = (data ?? [])
+          .map(parseProject)
+          .filter((project): project is Project => project !== null);
+        const authorIds = [...new Set(loadedProjects.map((project) => project.author_id))];
+        let names: Record<string, string> = {};
+        if (authorIds.length > 0) {
+          const profiles = await supabase
+            .from("creator_profiles")
+            .select("user_id,username")
+            .in("user_id", authorIds);
+          if (!profiles.error) {
+            names = Object.fromEntries(
+              (profiles.data ?? [])
+                .filter((profile) => typeof profile.username === "string")
+                .map((profile) => [profile.user_id, profile.username as string])
+            );
+          }
+        }
         if (!active) return;
-        setProjects(
-          (data ?? [])
-            .map(parseProject)
-            .filter(
-              (project): project is Project => project !== null
-            )
-        );
+        setProjects(loadedProjects);
+        setCreatorNames(names);
         setStatus("ready");
       } catch {
         if (active) setStatus("error");
@@ -349,7 +363,9 @@ export default function ProjectFeed({
                   <Link
                     className="project-author-link"
                     to={`/profile/${project.author_id}`}>
-                    View creator profile
+                    {creatorNames[project.author_id]
+                      ? `By @${creatorNames[project.author_id]}`
+                      : "View creator profile"}
                   </Link>
                 )}
                 {project.description && (

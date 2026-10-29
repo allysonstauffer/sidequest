@@ -175,6 +175,7 @@ export default function SidequestEvents({
   const { categories, status: categoriesStatus } =
     useHobbyCategories();
   const [events, setEvents] = useState<SidequestEvent[]>([]);
+  const [hostNames, setHostNames] = useState<Record<string, string>>({});
   const [rsvpIds, setRsvpIds] = useState<Set<string>>(
     new Set()
   );
@@ -281,7 +282,7 @@ export default function SidequestEvents({
           );
 
         let loadedRsvpIds = new Set<string>();
-        if (!hostId && loadedEvents.length > 0) {
+        if (hostId !== viewerId && loadedEvents.length > 0) {
           const { data: rsvps, error: rsvpError } =
             await supabase
               .from("sidequest_rsvps")
@@ -297,8 +298,25 @@ export default function SidequestEvents({
           );
         }
 
+        const hostIds = [...new Set(loadedEvents.map((event) => event.host_id))];
+        let loadedHostNames: Record<string, string> = {};
+        if (hostIds.length > 0) {
+          const profiles = await supabase
+            .from("creator_profiles")
+            .select("user_id,username")
+            .in("user_id", hostIds);
+          if (!profiles.error) {
+            loadedHostNames = Object.fromEntries(
+              (profiles.data ?? [])
+                .filter((profile) => typeof profile.username === "string")
+                .map((profile) => [profile.user_id, profile.username as string])
+            );
+          }
+        }
+
         if (!active) return;
         setEvents(loadedEvents);
+        setHostNames(loadedHostNames);
         setRsvpIds(loadedRsvpIds);
         setStatus("ready");
       } catch {
@@ -729,8 +747,10 @@ export default function SidequestEvents({
         <p>
           {search || hobbyFilter || skillFilter
             ? "No upcoming sidequests match these filters."
-            : hostId
+            : hostId === viewerId
               ? "You have no upcoming sidequests yet."
+              : hostId
+                ? "This creator has no upcoming sidequests yet."
               : "No upcoming sidequests yet."}
         </p>
       ) : (
@@ -774,13 +794,15 @@ export default function SidequestEvents({
                   {event.skill_level}
                 </p>
                 <h3>{event.title}</h3>
-                {hostId ? (
+                {hostId === viewerId ? (
                   <p>Hosted by you</p>
                 ) : (
                   <Link
                     className="sidequest-event-host-link"
                     to={`/profile/${event.host_id}`}>
-                    View host profile
+                    {hostNames[event.host_id]
+                      ? `Hosted by @${hostNames[event.host_id]}`
+                      : "View host profile"}
                   </Link>
                 )}
                 {event.description ? (
@@ -885,7 +907,7 @@ export default function SidequestEvents({
                   </div>
                 </form>
               )}
-              {!hostId ? (
+              {hostId !== viewerId ? (
                 <button
                   type="button"
                   disabled={rsvpInProgress !== null}

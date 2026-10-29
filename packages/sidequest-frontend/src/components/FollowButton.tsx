@@ -4,11 +4,13 @@ import { supabase } from "../lib/supabase";
 type FollowButtonProps = {
   viewerId: string;
   targetId: string;
+  onFollowChange?: () => void;
 };
 
 export default function FollowButton({
   viewerId,
-  targetId
+  targetId,
+  onFollowChange
 }: FollowButtonProps) {
   const [isFollowing, setIsFollowing] = useState(false);
   const [status, setStatus] = useState<
@@ -61,6 +63,7 @@ export default function FollowButton({
           });
       if (result.error) throw new Error(result.error.message);
       setIsFollowing((current) => !current);
+      onFollowChange?.();
     } catch (error) {
       setNotice(
         error instanceof Error
@@ -74,15 +77,6 @@ export default function FollowButton({
 
   if (status === "loading") {
     return <p role="status">Checking follow status…</p>;
-  }
-
-  if (status === "error") {
-    return (
-      <p role="alert">
-        Could not load follow status. Check that the follow
-        migration has been applied.
-      </p>
-    );
   }
 
   return (
