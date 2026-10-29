@@ -1,12 +1,9 @@
-import {
-  useEffect,
-  useRef,
-  useState
-} from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   toPreferences,
-  toSelection
+  toSelection,
+  validatePreferences
 } from "./model";
 
 import type {
@@ -27,8 +24,7 @@ export function usePreferences(
   service: PreferenceService
 ) {
   const [version, setVersion] = useState(0);
-  const [result, setResult] =
-    useState<LoadResult | null>(null);
+  const [result, setResult] = useState<LoadResult | null>(null);
 
   const key = `${userId}:${version}`;
 
@@ -62,8 +58,7 @@ export function usePreferences(
     };
   }, [userId, key, service]);
 
-  const current =
-    result?.key === key ? result : null;
+  const current = result?.key === key ? result : null;
 
   return {
     loading: current === null,
@@ -77,10 +72,9 @@ export function usePreferenceDraft(
   initialPreferences: Preference[],
   service: PreferenceService
 ) {
-  const [selection, setSelection] =
-    useState<HobbySelection>(() =>
-      toSelection(initialPreferences)
-    );
+  const [selection, setSelection] = useState<HobbySelection>(
+    () => toSelection(initialPreferences)
+  );
 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -97,8 +91,9 @@ export function usePreferenceDraft(
 
     const preferences = toPreferences(selection);
 
-    if (preferences.length === 0) {
-      setError("Select at least one hobby.");
+    const validationError = validatePreferences(preferences);
+    if (validationError) {
+      setError(validationError);
       return false;
     }
 

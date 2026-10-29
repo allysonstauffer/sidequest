@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
+import ProjectFeed from "../components/ProjectFeed";
 import { HOBBIES } from "../preferences/model";
 import type { PreferenceService } from "../preferences/model";
 import { supabasePreferenceService } from "../preferences/supabasePreferenceService";
@@ -74,6 +75,11 @@ function ProfilePage({
           </Link>
         </>
       )}
+      <ProjectFeed
+        key={session.user.id}
+        authorId={session.user.id}
+        accessToken={session.access_token}
+      />
     </section>
   );
 }

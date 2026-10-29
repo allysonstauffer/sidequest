@@ -10,7 +10,7 @@ import {
   useNavigate
 } from "react-router-dom";
 import type { ReactNode } from "react";
-import { useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import InfoPage from "./pages/InfoPage";
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
@@ -27,34 +27,24 @@ import RequireOnboarding from "./components/RequireOnboarding";
 import Recommendations from "./components/Recommendations";
 import ProjectFeed from "./components/ProjectFeed";
 import { useAuth } from "./auth/useAuth";
+import { compressImage } from "./components/compression";
+import { publishProject } from "./lib/projectApi";
+import { supabase } from "./lib/supabase";
 
-const imgIcon =
-  "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
+
 const imgActiveMarker =
   "https://www.figma.com/api/mcp/asset/bb150a0e-c82a-43ef-aba3-d0cf68c53b30.svg";
-const imgSearch =
-  "https://www.figma.com/api/mcp/asset/c21f9e9e-c1b2-4c06-8b6f-390958250661.svg";
-const imgIcon1 =
-  "https://www.figma.com/api/mcp/asset/21122cb5-fda7-4477-9594-f4926496ce65.svg";
-const imgTwoPeopleTalking =
-  "https://www.figma.com/api/mcp/asset/0eadaef5-3212-49d7-a00d-2c01ea5fefe5.svg";
-const imgSettings =
-  "https://www.figma.com/api/mcp/asset/5991e596-afae-449d-934e-f0307f52abf6.svg";
 const imgIcon3 =
   "https://www.figma.com/api/mcp/asset/528c07f3-fe9a-438d-ab72-05773043bd94.svg";
 const imgIcon4 =
   "https://www.figma.com/api/mcp/asset/f5d983c7-1d55-4601-9522-1669591869c0.svg";
 
 const navItems = [
-  { label: "Home", icon: imgIcon, to: "/feed" },
-  { label: "Community", icon: imgSearch, to: "/community" },
-  { label: "Search", icon: imgIcon1, to: "/search" },
-  {
-    label: "Messages",
-    icon: imgTwoPeopleTalking,
-    to: "/messages"
-  },
-  { label: "Settings", icon: imgSettings, to: "/settings" }
+  { label: "Home", to: "/feed" },
+  { label: "Community", to: "/community" },
+  { label: "Search", to: "/search" },
+  { label: "Messages", to: "/messages" },
+  { label: "Settings", to: "/settings" }
 ];
 
 function App() {
@@ -95,8 +85,14 @@ function App() {
               element={<CommunityPage />}
             />
             <Route path="/search" element={<SearchPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
-            <Route path="/settings" element={<SettingsPage />} />
+            <Route
+              path="/messages"
+              element={<MessagesPage />}
+            />
+            <Route
+              path="/settings"
+              element={<SettingsPage />}
+            />
             <Route path="/share" element={<SharePage />} />
             <Route path="/browse" element={<BrowsePage />} />
           </Route>
@@ -305,6 +301,7 @@ function SettingsPage() {
 function SharePage() {
   const [notice, setNotice] = useState("");
   const [isUploading, setIsUploading] = useState(false);
+  const publishingRef = useRef(false);
   const { session } = useAuth();
   const navigate = useNavigate();
 
@@ -312,44 +309,69 @@ function SharePage() {
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
+    if (publishingRef.current) return;
     const formData = new FormData(event.currentTarget);
     const file = formData.get("attachment");
     if (!(file instanceof File) || file.size === 0) {
-      setNotice("upload image.");
+      setNotice("Choose an image to share.");
       return;
     }
+    if (
+      !["image/jpeg", "image/png", "image/webp"].includes(
+        file.type
+      )
+    ) {
+      setNotice("Choose a JPEG, PNG, or WebP image.");
+      return;
+    }
+    const title = formData.get("title");
+    if (typeof title !== "string" || !title.trim()) {
+      setNotice("Enter a title for your side quest.");
+      return;
+    }
+    formData.set("title", title.trim());
     if (!session) {
-      setNotice("sign in.");
+      setNotice("Sign in before posting.");
       return;
     }
 
+    publishingRef.current = true;
     setIsUploading(true);
-    setNotice("uploading");
+    setNotice("Preparing your image…");
     try {
-      const response = await fetch("/api/upload", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${session.access_token}` },
-        body: formData
-      });
-      if (!response.ok) {
-        const result = await response.json().catch(() => null);
+      const compressed = await compressImage(file);
+      if (compressed.size > 10 * 1024 * 1024) {
         throw new Error(
-          typeof result?.detail === "string"
-            ? result.detail
-            : "upload unavailable"
+          "This image is still too large. Choose a smaller image."
         );
       }
+      formData.set("attachment", compressed, compressed.name);
+
+      // Compression can take time; refresh an expired session before sending.
+      const { data, error } = await supabase.auth.getSession();
+      if (
+        error ||
+        !data.session ||
+        data.session.user.id !== session.user.id
+      ) {
+        throw new Error(
+          "Your session changed. Please sign in again before posting."
+        );
+      }
+      setNotice("Uploading your side quest…");
+      await publishProject(formData, data.session.access_token);
       navigate("/feed");
     } catch (error) {
       setNotice(
         error instanceof TypeError
-          ? "try again later"
+          ? "Could not reach the server. Check your connection and try again."
           : error instanceof Error
             ? error.message
-            : "try again later"
+            : "Could not publish your post. Please try again."
       );
     } finally {
       setIsUploading(false);
+      publishingRef.current = false;
     }
   }
 
@@ -370,6 +392,7 @@ function SharePage() {
               name="title"
               placeholder="Give your side quest a title"
               maxLength={200}
+              disabled={isUploading}
               required
             />
           </label>
@@ -379,6 +402,7 @@ function SharePage() {
               type="file"
               name="attachment"
               accept="image/jpeg,image/png,image/webp"
+              disabled={isUploading}
               required
             />
 
@@ -386,6 +410,7 @@ function SharePage() {
             <textarea
               name="description"
               placeholder="Share what you are making"
+              disabled={isUploading}
               required
             />
           </label>
@@ -394,7 +419,7 @@ function SharePage() {
               type="submit"
               className="primary-button"
               disabled={isUploading}>
-              {isUploading ? "uploading" : "upload"}
+              {isUploading ? "Publishing…" : "Publish"}
             </button>
           </div>
           {notice && (

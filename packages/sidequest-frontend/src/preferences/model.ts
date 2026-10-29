@@ -1,8 +1,8 @@
-export const HOBBIES = [
-  { id: "photography", label: "Photography" },
-  { id: "gardening", label: "Gardening" },
-  { id: "cooking", label: "Cooking" }
-] as const;
+import { isHobbyId, MAX_HOBBIES } from "./hobbyCatalogue.ts";
+import type { HobbyId } from "./hobbyCatalogue.ts";
+
+export { HOBBIES } from "./hobbyCatalogue.ts";
+export type { HobbyId } from "./hobbyCatalogue.ts";
 
 export const SKILL_LEVELS = [
   "Beginner",
@@ -10,8 +10,6 @@ export const SKILL_LEVELS = [
   "Advanced",
   "Expert"
 ] as const;
-
-export type HobbyId = (typeof HOBBIES)[number]["id"];
 
 export type SkillLevel = (typeof SKILL_LEVELS)[number];
 
@@ -44,7 +42,7 @@ export function isPreference(
   const row = value as Record<string, unknown>;
 
   return (
-    HOBBIES.some((hobby) => hobby.id === row.hobby) &&
+    isHobbyId(row.hobby) &&
     SKILL_LEVELS.some((level) => level === row.experience_level)
   );
 }
@@ -64,13 +62,9 @@ export function toSelection(
 export function toPreferences(
   selection: HobbySelection
 ): Preference[] {
-  return HOBBIES.flatMap(({ id }) => {
-    const level = selection[id];
-
-    return level
-      ? [{ hobby: id, experience_level: level }]
-      : [];
-  });
+  return Object.entries(selection).flatMap(([hobby, level]) =>
+    level ? [{ hobby, experience_level: level }] : []
+  );
 }
 
 export function validatePreferences(
@@ -78,6 +72,9 @@ export function validatePreferences(
 ): string | null {
   if (!Array.isArray(preferences) || preferences.length === 0) {
     return "Select at least one hobby.";
+  }
+  if (preferences.length > MAX_HOBBIES) {
+    return `Select up to ${MAX_HOBBIES} hobbies.`;
   }
   if (!preferences.every(isPreference)) {
     return "Choose an available hobby and a valid experience level.";

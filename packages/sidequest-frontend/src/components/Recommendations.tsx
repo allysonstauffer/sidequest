@@ -62,7 +62,11 @@ export default function Recommendations({
   if (recommendations.length === 0) {
     return (
       <div className="recommendations-notice">
-        <p>No matching activities are available yet.</p>
+        <p>
+          No activity suggestions for your hobbies yet. Your
+          interests are saved; you can still share projects and
+          explore the latest posts.
+        </p>
         <Link to="/onboarding" className="link-button">
           Update your interests
         </Link>
