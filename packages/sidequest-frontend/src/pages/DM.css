@@ -87,24 +87,26 @@
 
 .app-shell .dm-search-results {
   display: grid;
-  gap: 6px;
-  max-height: 220px;
-  overflow-y: auto;
+  gap: 10px;
+  max-height: 240px;
+  overflow-y: visible;
 }
 
-.app-shell .dm-sidebar .app-shell .dm-search-result {
+.app-shell .dm-sidebar .dm-search-result {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 10px;
+  padding: 9px 13px;
   border-radius: 10px;
   background: #393840;
   cursor: pointer;
 }
 
-.app-shell .dm-sidebar .app-shell .dm-search-result input {
+.app-shell .dm-sidebar .dm-search-result input[type="checkbox"] {
+  display: block;
   width: 16px;
   height: 16px;
+  flex: 0 0 16px;
   margin: 0;
   padding: 0;
   border: 0;
