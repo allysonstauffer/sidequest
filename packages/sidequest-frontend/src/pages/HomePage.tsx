@@ -5,9 +5,9 @@ import ProjectFeed from "../components/ProjectFeed";
 import SidequestEvents from "../components/SidequestEvents";
 import { useAuth } from "../auth/useAuth";
 const imgIcon3 =
-  "https://www.figma.com/api/mcp/asset/528c07f3-fe9a-438d-ab72-05773043bd94.svg";
+    "../public/img/plus.png";
 const imgIcon4 =
-  "https://www.figma.com/api/mcp/asset/f5d983c7-1d55-4601-9522-1669591869c0.svg";
+  "../public/img/messages.png";
 function getTimeOfDay(
   date: Date = new Date()
 ): "Morning" | "Afternoon" | "Evening" | "Night" {
