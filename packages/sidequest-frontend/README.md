@@ -95,6 +95,23 @@ confirmation, confirmation resend, logout, and password
 recovery. Supabase manages users and passwords; no custom
 password table is needed.
 
+Google sign-in also uses Supabase Auth. Enable Google under
+Authentication → Providers in Supabase and enter the Google Web
+OAuth client ID and secret there. Add the Supabase callback URL shown
+on that provider page to the client's **Authorized redirect URIs**
+in Google Cloud. Add `http://localhost:5173/onboarding` to Supabase
+Authentication → URL Configuration → Redirect URLs (and the
+production equivalent when deployed). The Google client secret
+must stay in Supabase, not in a `VITE_` variable. The existing
+`VITE_GOOGLE_OAUTH_ID` is only for the separate Calendar permission
+prompt after RSVP.
+
+After Google sign-in, users without `display_name` choose a unique
+Sidequest username, then complete the existing interests step.
+Apply [`202610280009_unique_auth_usernames.sql`](../../supabase/migrations/202610280009_unique_auth_usernames.sql)
+to enforce case-insensitive uniqueness for email and Google users.
+Resolve any existing duplicate usernames before applying it.
+
 ### Local configuration
 
 Set these in `packages/sidequest-frontend/.env`:
@@ -260,6 +277,14 @@ and upcoming hosted events. `/feed` lists public upcoming events
 with title/description search and hobby and recommended-skill
 filters, separate suggested activities, and completed projects
 from authors the current user follows.
+
+To add an RSVP to the attendee's Google Calendar, enable the Google
+Calendar API, create a Web application OAuth client in Google Cloud,
+and add the frontend origin to its authorized JavaScript origins.
+Set `VITE_GOOGLE_OAUTH_ID` to that public client ID in the frontend
+`.env` file. RSVPs are saved even if the attendee declines Google
+Calendar access or the Calendar request fails. Cancelling an RSVP
+currently does not remove a previously created Google Calendar event.
 
 Apply
 [`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)

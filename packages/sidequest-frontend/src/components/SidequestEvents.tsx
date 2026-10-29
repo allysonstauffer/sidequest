@@ -27,6 +27,93 @@ type SidequestEventsProps = {
   title: string;
 };
 
+type GoogleTokenResponse = {
+  access_token?: string;
+  error?: string;
+  scope?: string;
+};
+
+type GoogleOAuth = {
+  accounts: {
+    oauth2: {
+      initTokenClient: (options: {
+        client_id: string;
+        scope: string;
+        callback: (response: GoogleTokenResponse) => void;
+        error_callback: (error: { type: string }) => void;
+      }) => { requestAccessToken: () => void };
+    };
+  };
+};
+
+const CALENDAR_SCOPE =
+  "https://www.googleapis.com/auth/calendar.events";
+
+function requestGoogleCalendarToken(): Promise<string> {
+  const clientId = import.meta.env.VITE_GOOGLE_OAUTH_ID;
+  if (!clientId) {
+    return Promise.reject(
+      new Error("Google Calendar is not configured.")
+    );
+  }
+
+  const google = (window as Window & { google?: GoogleOAuth }).google;
+  if (!google?.accounts?.oauth2) {
+    return Promise.reject(
+      new Error("Google Calendar sign-in did not load. Please try again.")
+    );
+  }
+
+  return new Promise((resolve, reject) => {
+    const client = google.accounts.oauth2.initTokenClient({
+      client_id: clientId,
+      scope: CALENDAR_SCOPE,
+      callback: (response) => {
+        if (
+          response.error ||
+          !response.access_token ||
+          !response.scope?.split(" ").includes(CALENDAR_SCOPE)
+        ) {
+          reject(new Error("Google Calendar access was not granted."));
+          return;
+        }
+        resolve(response.access_token);
+      },
+      error_callback: () => {
+        reject(new Error("Google Calendar sign-in was closed."));
+      }
+    });
+    client.requestAccessToken();
+  });
+}
+
+async function addToGoogleCalendar(
+  event: SidequestEvent,
+  accessToken: string
+): Promise<void> {
+  const response = await fetch(
+    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        summary: event.title,
+        description: event.description,
+        location: event.location,
+        start: { dateTime: event.starts_at },
+        end: { dateTime: event.ends_at }
+      })
+    }
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not add the event to Google Calendar.");
+  }
+}
+
 function parseSidequestEvent(
   value: unknown
 ): SidequestEvent | null {
@@ -312,11 +399,20 @@ export default function SidequestEvents({
 
   async function toggleRsvp(sidequestId: string) {
     if (rsvpInProgress) return;
+    const cancelling = rsvpIds.has(sidequestId);
+    const sidequest = events.find((event) => event.id === sidequestId);
+    // Start Google's popup directly from the click, before the database request.
+    const calendarToken = cancelling
+      ? null
+      : requestGoogleCalendarToken().then(
+          (token) => ({ token }),
+          (error: unknown) => ({ error })
+        );
     setRsvpInProgress(sidequestId);
     setNotice("");
 
     try {
-      if (rsvpIds.has(sidequestId)) {
+      if (cancelling) {
         const { error } = await supabase
           .from("sidequest_rsvps")
           .delete()
@@ -339,6 +435,23 @@ export default function SidequestEvents({
         setRsvpIds((current) =>
           new Set(current).add(sidequestId)
         );
+        if (calendarToken && sidequest) {
+          const result = await calendarToken;
+          if ("error" in result) {
+            setNotice(
+              `RSVP saved, but ${result.error instanceof Error ? result.error.message : "Google Calendar was unavailable."}`
+            );
+          } else {
+            try {
+              await addToGoogleCalendar(sidequest, result.token);
+              setNotice("RSVP saved and added to Google Calendar.");
+            } catch (calendarError) {
+              setNotice(
+                `RSVP saved, but ${calendarError instanceof Error ? calendarError.message : "Google Calendar was unavailable."}`
+              );
+            }
+          }
+        }
       }
     } catch (error) {
       setNotice(

@@ -4,6 +4,7 @@ import { useAuth } from "../auth/useAuth";
 import type { AuthService } from "../auth/authService";
 import { supabaseAuthService } from "../auth/supabaseAuthService";
 import { useAuthForms } from "../auth/useAuthForms";
+import { supabase } from "../lib/supabase";
 
 export default function LoginPage({
   authService = supabaseAuthService
@@ -27,6 +28,8 @@ export default function LoginPage({
   const [usernameStatus, setUsernameStatus] = useState<
     "idle" | "checking" | "available" | "taken" | "error"
   >("idle");
+  const [googleNotice, setGoogleNotice] = useState("");
+  const [googleBusy, setGoogleBusy] = useState(false);
 
   useEffect(() => {
     const value = username.trim();
@@ -70,12 +73,41 @@ export default function LoginPage({
     });
   }
 
+  async function handleGoogleSignIn() {
+    if (googleBusy) return;
+    setGoogleBusy(true);
+    setGoogleNotice("");
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/onboarding`
+        }
+      });
+      if (error) {
+        setGoogleNotice(error.message);
+        setGoogleBusy(false);
+      }
+    } catch {
+      setGoogleNotice("Unable to sign in with Google. Please try again.");
+      setGoogleBusy(false);
+    }
+  }
+
   if (loading) return <p role="status">Loading…</p>;
   if (session) return <Navigate to="/feed" replace />;
   return (
     <section className="site-page">
       <p className="site-eyebrow">Welcome!</p>
       <h1>Log in</h1>
+      <button
+        type="button"
+        className="site-button"
+        onClick={() => void handleGoogleSignIn()}
+        disabled={busy || googleBusy}>
+        {googleBusy ? "Connecting to Google…" : "Continue with Google"}
+      </button>
+      {googleNotice && <p className="site-notice" role="alert">{googleNotice}</p>}
       <form
         className="site-form"
         onSubmit={handleSubmit}

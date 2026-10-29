@@ -4,6 +4,7 @@ import {
 } from "react-router-dom";
 
 import { useAuth } from "../auth/useAuth";
+import { hasUsername } from "../auth/hasUsername";
 import type { PreferenceService } from "../preferences/model";
 
 import { supabasePreferenceService } from
@@ -31,6 +32,10 @@ export default function RequireOnboarding({
 
   if (!session) {
     return <Navigate to="/login" replace />;
+  }
+
+  if (!hasUsername(session.user)) {
+    return <Navigate to="/onboarding" replace />;
   }
 
   if (loading) {
