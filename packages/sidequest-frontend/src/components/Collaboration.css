@@ -1,0 +1,68 @@
+.collaboration-inbox {
+  width: min(100%, 900px);
+  margin: 0 auto;
+  padding: 24px;
+}
+.collaboration-inbox ul {
+  padding: 0;
+  list-style: none;
+}
+.collaboration-card {
+  padding: 18px;
+  margin: 16px 0;
+  border: 1px solid #b18fcf;
+  border-radius: 12px;
+}
+.collaboration-card h3 {
+  margin-top: 0;
+}
+.collaboration-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.collaboration-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+}
+.collaboration-request {
+  margin-top: 16px;
+}
+.collaboration-request form {
+  display: grid;
+  gap: 12px;
+  margin-top: 12px;
+}
+.app-shell .collaboration-request textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 100px;
+  padding: 10px;
+  font: inherit;
+  border-radius: 8px;
+  border: 1px solid #b18fcf;
+  background: #24242a;
+  color: #fff;
+}
+.app-shell .collaboration-inbox button,
+.app-shell .collaboration-request button {
+  padding: 10px 14px;
+  border: 1px solid #b18fcf;
+  border-radius: 8px;
+  background: #473951;
+  color: #fff;
+  font: inherit;
+  cursor: pointer;
+}
+.collaboration-inbox button:disabled,
+.collaboration-request button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.collaboration-inbox button:focus-visible,
+.collaboration-request button:focus-visible,
+.collaboration-request textarea:focus-visible {
+  outline: 3px solid #b18fcf;
+  outline-offset: 3px;
+}

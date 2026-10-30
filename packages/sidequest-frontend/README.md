@@ -161,10 +161,131 @@ Sources:
 [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
+Shared projects use the Python upload API and Supabase.
+Community and message persistence remain placeholders. Profiles
+and hobby preferences use the database setup described below.
+The frontend route guards control navigation; database
 Message persistence remains a placeholder. Public communities,
 profiles, and hobby preferences use the database setup described
 below. The frontend route guards control navigation; database
 permissions and Row Level Security enforce record access.
+
+### Posting side quests
+
+Start both processes from the repository root. The frontend dev
+server proxies `/api` to the Python API on port 8000.
+
+```sh
+# Backend: activate the project's Python environment first.
+python -m pip install -r packages/sidequest-backend/requirements.txt
+npm run dev
+
+# Frontend: run in another terminal.
+npm run dev --workspace=sidequest-frontend
+```
+
+Set these in `packages/sidequest-backend/.env`:
+
+```env
+SUPABASE_URL=https://your-project-id.supabase.co
+SUPABASE_KEY=your-publishable-or-anon-key
+SUPABASE_STORAGE_BUCKET=project-media
+```
+
+Use the same Supabase project as the frontend. The old backend
+`SUPABASE_SECRET_KEY` variable remains a fallback if
+`SUPABASE_KEY` is unset. The API validates the user's access
+token and attaches it to every database and storage request,
+including cleanup and deletion. Requests use that user's
+database/storage permissions, even when the configured API key
+is privileged.
+
+The existing `projects` table must support `id`, `author_id`,
+`title`, `description`, `media_urls` (an array), and
+`created_at`. Keep its existing visibility rules. Authenticated
+owners need insert/select/delete access to their records.
+Storage policies must allow owners to upload and remove files
+under `images/<user-id>/` in the configured bucket; policies
+should check the user-id folder (the second folder segment). The
+current image display uses public URLs, so the configured bucket
+must support public reads. These tables, bucket, and policies
+must be provisioned in Supabase; this repository does not
+currently include their original setup migration.
+
+If the backend logs show PostgreSQL error `42501` while saving a
+project, apply
+[`202610190001_project_owner_permissions.sql`](../../supabase/migrations/202610190001_project_owner_permissions.sql)
+in the Supabase SQL Editor or through your migration workflow.
+It grants authenticated users insert, select, and delete access
+for their own projects and preserves existing read policies. It
+requires RLS to already be enabled and stops before making
+changes if it is disabled. Existing restrictive policies still
+apply. If the error code is different, inspect the backend's
+`Project save failed` log before changing permissions; schema
+constraints and connection failures need different fixes.
+
+The sharing form compresses supported JPEG, PNG, and WebP files
+before upload. The API independently validates and re-encodes
+the image, uploads it, and saves the project record. A database
+save failure attempts to remove the uploaded image. The frontend
+only navigates to the feed when the API returns a saved project
+ID. Profiles also display the user's posts and deletion
+controls.
+
+For production, route `/api/*` to FastAPI before applying the
+SPA HTML fallback. If the API is hosted at a separate origin,
+set `VITE_API_BASE_URL=https://your-api.example` in the
+frontend's build environment and
+`SIDEQUEST_FRONTEND_ORIGINS=https://your-frontend.example` in
+the backend environment. The base URL must omit `/api`; the
+client adds it. Multiple allowed frontend origins can be
+comma-separated. Restart the backend and rebuild the frontend
+after configuration changes. Same-origin hosting needs neither
+setting.
+
+Run the posting regression checks without creating real posts:
+
+```sh
+packages/sidequest-backend/.venv/bin/python -m unittest discover -s packages/sidequest-backend -p 'test_*.py'
+npm test --workspace=sidequest-frontend
+```
+
+Run the frontend tests with Node 24, which provides built-in
+TypeScript support. Backend tests use an isolated HTTP transport
+with synthetic users and keys.
+
+### Project collaboration flags
+
+Apply
+[`202610290002_project_collaboration.sql`](../../supabase/migrations/202610290002_project_collaboration.sql)
+before running this frontend/backend version. It adds
+`projects.looking_for_collaborators` with a default of false and
+creates the authenticated-only `set_project_collaboration` RPC.
+It preserves existing RLS policies and read permissions. The RPC
+runs with its creator's privileges, explicitly checks the caller
+with `auth.uid()`, and updates only a project owned by that
+user. It changes only the flag and returns the saved Boolean.
+
+The posting checkbox is included in the existing `FormData`.
+FastAPI parses it as a Boolean, defaults omitted checkboxes to
+false, and includes the flag in the project insert. No extra
+frontend state is needed for this checkbox.
+
+`ProjectFeed` fetches the flag, shows a badge and an expandable
+details panel, and exposes the toggle on the owner's profile
+posts. `ProjectCollaborationToggle` calls the small
+`saveProjectCollaboration` helper and updates the card only
+after the RPC confirms the value. A failed save keeps the prior
+status and displays an error. The public feed checkbox filters
+in the database before ordering and limiting results to 20.
+Public feeds remain subject to the existing read policies;
+flagging a project does not change who can see it.
+
+Verify by creating flagged and unflagged posts, refreshing to
+confirm persistence, changing the flag from the owner's profile,
+and filtering the feed. A second account must not be able to
+change the first account's flag through the RPC. The current
+details view expands within each project card.
 
 ### Login and signup workflow
 
@@ -219,12 +340,20 @@ page requires authentication but is outside the completion
 guard, so users can finish onboarding or edit their choices.
 Password recovery stays outside the completion guard.
 
-The initial catalogue is Photography, Gardening, and Cooking.
-Each selection has its own level: Beginner, Intermediate,
-Advanced, or Expert. These values live in
-`src/preferences/model.ts` and must agree with the database
-constraints and save function. Unsupported or duplicate saved
-values produce an error rather than being silently removed.
+The picker searches the 450 hobbies in
+`src/data/SideQuestHobbies.json` by name and keyword. Matching
+ignores case, accents, and punctuation; name matches rank ahead
+of keyword matches. The catalogue is bundled with the frontend,
+so searching needs no network request. Results appear 20 at a
+time with a Show more button.
+
+Users can select one to three hobbies. Selected interests stay
+visible across searches and each has its own level: Beginner,
+Intermediate, Advanced, or Expert. Adding starts at Beginner;
+users can change the level or remove a selection before saving.
+The existing Photography, Gardening, and Cooking IDs remain
+valid. Unsupported or duplicate saved values produce an error
+rather than being silently removed.
 
 `InterestSkillPicker` displays choices. `usePreferenceDraft`
 owns selection, validation, and saving; `usePreferences` loads
@@ -255,9 +384,10 @@ The migration assumes owner-write policies are already enabled
 for both tables. It preserves the team's public-read policies;
 preferences are not promised to be private. It also grants usage
 on the generated ID sequence when one exists. The skill
-constraint must permit all four exact, capitalized values. Keep
-the existing unique `(user_id, hobby)` constraint and foreign
-keys in place.
+constraint must permit all four exact, capitalized values. The
+save function rejects duplicate hobby IDs and locks the profile
+while replacing its preferences. Existing constraints and
+foreign keys remain in place.
 
 The profile page displays saved interests and links back to the
 editor. The feed ranks 12 bundled starter activities by matching
@@ -267,6 +397,42 @@ hobbies and four levels. It is separate from shared project
 records; real project recommendations require a hobby/difficulty
 association in that schema.
 
+### Searchable hobby catalogue migration
+
+After the preference migration above, apply
+[`202610290001_searchable_hobby_catalogue.sql`](../../supabase/migrations/202610290001_searchable_hobby_catalogue.sql)
+before using the expanded picker. It adds a `keywords` array to
+the existing `public.hobby_categories` table and seeds the
+supplied JSON into its `id`, `name`, and `keywords` columns.
+Existing IDs keep their names, creators, creation timestamps,
+and additional keywords. Custom categories are retained. All 450
+supplied IDs satisfy the table's slug and length constraints.
+
+The migration updates `save_my_preferences` to validate against
+`hobby_categories`. The one-to-three limit and all four skill
+levels remain enforced in both the frontend and save function.
+The existing foreign keys from `user_hobbies`, `projects`,
+`communities`, and `sidequests` remain unchanged. No separate
+`hobbies` table is created.
+
+Existing grants and RLS policies are preserved. The schema
+export does not include them: authenticated users must already
+be able to read the catalogue rows and read/write their own
+profile and preferences for the save function to work. Review
+those policies separately if saving fails. The migration runs as
+one transaction.
+
+After applying it, verify a known new entry with
+`select id, name, keywords from public.hobby_categories where id = '3d-printing';`
+and test saving a new hobby from onboarding. The total category
+count can exceed 450 if the database has additional categories.
+
+Future additions require updating the JSON and adding a new
+catalogue seed migration before releasing the matching frontend.
+Keep existing IDs stable. The regression tests check that this
+initial migration's seed matches the JSON. Recommendations still
+cover only Photography, Gardening, and Cooking; other hobbies
+show an explanation when no suggestions are available.
 ### Projects and sidequest events
 
 Projects are completed work stored in `public.projects`.

@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import LogoutButton from "./LogoutButton";
+import NotificationBell from "../components/NotificationBell";
+
 const imgIcon =
   "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
 const imgActiveMarker =
@@ -46,6 +48,7 @@ function DashboardLayout({
           <nav
             className="nav-list"
             aria-label="Primary navigation">
+            <NotificationBell />
             {navItems.map(({ label, to }) => (
               <NavLink
                 key={label}

@@ -1,8 +1,6 @@
-export const HOBBIES = [
-  { id: "photography", label: "Photography" },
-  { id: "gardening", label: "Gardening" },
-  { id: "cooking", label: "Cooking" }
-] as const;
+import { MAX_HOBBIES } from "./hobbyCatalogue.ts";
+
+export { HOBBIES } from "./hobbyCatalogue.ts";
 
 export const SKILL_LEVELS = [
   "Beginner",
@@ -75,6 +73,9 @@ export function validatePreferences(
 ): string | null {
   if (!Array.isArray(preferences) || preferences.length === 0) {
     return "Select at least one hobby.";
+  }
+  if (preferences.length > MAX_HOBBIES) {
+    return `Select up to ${MAX_HOBBIES} hobbies.`;
   }
   if (!preferences.every(isPreference)) {
     return "Choose an available hobby and a valid experience level.";

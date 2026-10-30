@@ -1023,3 +1023,15 @@
     padding: 24px 20px 40px;
   }
 }
+.app-shell .collaboration-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-shell .collaboration-option input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #b18fcf;
+}

@@ -1,5 +1,9 @@
-import { SKILL_LEVELS, toSelection } from "./model";
-import type { Preference, SkillLevel } from "./model";
+import { SKILL_LEVELS, toSelection } from "./model.ts";
+import type {
+  HobbyId,
+  Preference,
+  SkillLevel
+} from "./model.ts";
 
 export interface Activity {
   id: string;

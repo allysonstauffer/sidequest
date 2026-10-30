@@ -1,3 +1,7 @@
+//this is all figma to code btw i just removed all the demo pieces
+//we should prob get actual images for stuff like the logo and icons cause these are pretty bad
+
+
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import InfoPage from "./pages/InfoPage";
 import LandingPage from "./pages/LandingPage";
@@ -18,6 +22,10 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import ResendConfirmationPage from "./pages/ResendConfirmationPage";
 import OnboardingPage from "./pages/OnboardingPage";
 import RequireOnboarding from "./components/RequireOnboarding";
+import CollaborationsPage from "./pages/CollaborationsPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import ProjectDetailsPage from "./pages/ProjectDetailsPage";
+import DashboardLayout from "./components/DashboardLayout";
 import DM from "./pages/DM";
 
 function App() {
@@ -57,6 +65,30 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<RequireOnboarding />}>
             <Route path="/feed" element={<HomePage />} />
+            <Route
+              path="/notifications"
+              element={
+                <DashboardLayout>
+                  <NotificationsPage />
+                </DashboardLayout>
+              }
+            />
+            <Route
+              path="/projects/:projectId"
+              element={
+                <DashboardLayout>
+                  <ProjectDetailsPage />
+                </DashboardLayout>
+              }
+            />
+            <Route
+              path="/collaborations"
+              element={
+                <DashboardLayout>
+                  <CollaborationsPage />
+                </DashboardLayout>
+              }
+            />
             <Route
               path="/community"
               element={<CommunityPage />}

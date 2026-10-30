@@ -92,6 +92,40 @@
   cursor: wait;
 }
 
+.project-feed .collaboration-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.project-feed .collaboration-option input {
+  width: 18px;
+  height: 18px;
+  accent-color: #b18fcf;
+}
+
+.project-collaboration-badge {
+  display: inline-block;
+  margin-bottom: 12px;
+  padding: 6px 10px;
+  border: 1px solid #b18fcf;
+  border-radius: 999px;
+  background: rgba(177, 143, 207, 0.15);
+  color: #e4cff6;
+  font-size: 13px;
+}
+
+.project-feed .project-collaboration-button {
+  display: block;
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid #b18fcf;
+  border-radius: 8px;
+  background: transparent;
+  color: #e4cff6;
+}
 .project-card-menu {
   position: absolute;
   top: 44px;
@@ -117,6 +151,11 @@
   cursor: pointer;
 }
 
+.project-feed .project-collaboration-button:hover {
+  background: rgba(177, 143, 207, 0.15);
+}
+
+.project-feed .project-collaboration-button:disabled,
 .project-card-menu button:hover,
 .project-edit-actions button:hover:not(:disabled) {
   background: #5b5864;
@@ -132,6 +171,24 @@
   cursor: wait;
 }
 
+.project-details {
+  margin: 12px 0;
+}
+
+.project-details summary {
+  cursor: pointer;
+}
+
+.project-feed .project-details p {
+  margin-top: 10px;
+}
+
+.project-collaboration-button:focus-visible,
+.project-details summary:focus-visible,
+.collaboration-option input:focus-visible {
+  outline: 3px solid #b18fcf;
+  outline-offset: 3px;
+}
 .project-edit-form {
   display: grid;
   gap: 12px;

@@ -11,8 +11,13 @@ export default function LogoutButton() {
     setNotice("");
     try {
       const { error } = await supabase.auth.signOut();
-      if (error) setNotice(error.message);
-      else navigate("/login", { replace: true });
+      if (error) 
+        {
+          setNotice(error.message);
+        } else 
+        {
+          navigate("/login", { replace: true });
+        }
     } catch {
       setNotice("Unable to log out. Please try again.");
     } finally {

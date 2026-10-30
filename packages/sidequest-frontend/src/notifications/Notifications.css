@@ -1,0 +1,107 @@
+.notification-bell {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: inherit;
+  text-decoration: none;
+}
+.notification-bell:hover {
+  background: #b18fcf20;
+}
+.notification-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  background: #ff5477;
+  color: #17131c;
+  font-size: 12px;
+  font-weight: 700;
+  border-radius: 99px;
+}
+.notifications-page {
+  max-width: 850px;
+  padding: 24px;
+  margin: 0 auto;
+}
+.notifications-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.app-shell .notifications-page button {
+  border: 1px solid #b18fcf;
+  border-radius: 8px;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+.app-shell .notifications-page button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+.notifications-list {
+  list-style: none;
+  padding: 0;
+}
+.notification-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px 12px;
+  border-bottom: 1px solid #b18fcf40;
+  overflow-wrap: anywhere;
+}
+.notification-item > div {
+  flex: 1;
+  min-width: 0;
+}
+.notification-item.is-unread {
+  background: #b18fcf12;
+  border-radius: 10px;
+}
+.notification-heart {
+  color: #ff5477;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+.notification-item time {
+  display: block;
+  color: #bcb0c8;
+  font-size: 0.8rem;
+  margin: 6px 0;
+}
+.app-shell .notifications-page .notification-open {
+  text-align: left;
+  padding: 0;
+  border: none;
+  line-height: 1.6;
+}
+.app-shell .notifications-page .notification-read {
+  font-size: 0.85rem;
+  padding: 6px 10px;
+}
+.notification-dot {
+  width: 8px;
+  height: 8px;
+  background: #b18fcf;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 12px;
+}
+.notifications-status {
+  color: #bcb0c8;
+  font-size: 0.85rem;
+}
+.notification-bell:focus-visible,
+.app-shell .notifications-page button:focus-visible {
+  outline: 2px solid #b18fcf;
+  outline-offset: 3px;
+}

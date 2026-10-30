@@ -1,0 +1,52 @@
+.project-like {
+  margin: 12px 0;
+}
+.project-like-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+.project-feed .project-like-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: #f2edf6;
+  cursor: pointer;
+  transition:
+    transform 150ms ease,
+    color 150ms ease;
+}
+.project-feed .project-like-button:hover {
+  background: #ffffff0d;
+  transform: scale(1.08);
+}
+.project-feed .project-like-button.is-liked {
+  color: #ff5477;
+}
+.project-feed .project-like-button:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+.project-feed .project-like-button:focus-visible {
+  outline: 2px solid #ff829a;
+  outline-offset: 2px;
+}
+.like-saving {
+  font-size: 0.8rem;
+}
+.project-like p[role="alert"] {
+  margin-top: 8px;
+  color: #ffd0d0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .project-feed .project-like-button {
+    transition: none;
+  }
+}
