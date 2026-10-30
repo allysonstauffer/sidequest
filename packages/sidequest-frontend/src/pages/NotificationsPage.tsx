@@ -3,17 +3,28 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabase";
 import { useNotifications } from "../notifications/useNotifications";
-import { Heart } from "lucide-react";
+import { Heart, UserRoundPlus } from "lucide-react";
+import FollowButton from "../components/FollowButton";
 import "../notifications/Notifications.css";
 
 type Notification = {
   id: string;
+  actor_id: string;
   actor_name: string;
-  project_title: string;
-  project_id: string;
   created_at: string;
   read_at: string | null;
-};
+} & (
+  | {
+      type: "project_like";
+      project_title: string;
+      project_id: string;
+    }
+  | {
+      type: "user_follow";
+      project_title: null;
+      project_id: null;
+    }
+);
 
 export default function NotificationsPage() {
   const { session } = useAuth();
@@ -51,7 +62,7 @@ function NotificationList({ userId }: { userId: string }) {
         const { data, error } = await supabase
           .from("notifications")
           .select(
-            "id, actor_name, project_title, project_id, created_at, read_at"
+            "id, type, actor_id, actor_name, project_title, project_id, created_at, read_at"
           )
           .eq("recipient_id", userId)
           .is("dismissed_at", null)
@@ -86,7 +97,11 @@ function NotificationList({ userId }: { userId: string }) {
     try {
       await markRead(item?.id ?? null);
       if (item && open)
-        navigate(`/projects/${item.project_id}`);
+        navigate(
+          item.type === "user_follow"
+            ? `/profile/${item.actor_id}`
+            : `/projects/${item.project_id}`
+        );
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -102,7 +117,7 @@ function NotificationList({ userId }: { userId: string }) {
   return (
     <main className="notifications-page">
       <h1>Notifications</h1>
-      <p>See who liked your projects.</p>
+      <p>See new followers and who liked your projects.</p>
       <div className="notifications-actions">
         <button onClick={refresh}>Refresh</button>
         <button
@@ -114,7 +129,7 @@ function NotificationList({ userId }: { userId: string }) {
       {!connected && (
         <p className="notifications-status">
           Live updates are reconnecting. You can refresh to
-          check for new likes.
+          check for new notifications.
         </p>
       )}
       {loading && <p role="status">Loading notifications…</p>}
@@ -130,19 +145,34 @@ function NotificationList({ userId }: { userId: string }) {
           <li
             key={item.id}
             className={`notification-item${item.read_at ? "" : " is-unread"}`}>
-            <Heart
-              className="notification-heart"
-              size={22}
-              fill="currentColor"
-              aria-hidden="true"
-            />
+            {item.type === "user_follow" ? (
+              <UserRoundPlus
+                className="notification-follow-icon"
+                size={22}
+                aria-hidden="true"
+              />
+            ) : (
+              <Heart
+                className="notification-heart"
+                size={22}
+                fill="currentColor"
+                aria-hidden="true"
+              />
+            )}
             <div>
               <button
                 className="notification-open"
                 disabled={saving}
                 onClick={() => void read(item, true)}>
-                <strong>{item.actor_name}</strong> liked your
-                project <strong>{item.project_title}</strong>.
+                <strong>{item.actor_name}</strong>{" "}
+                {item.type === "user_follow" ? (
+                  "started following you."
+                ) : (
+                  <>
+                    liked your project{" "}
+                    <strong>{item.project_title}</strong>.
+                  </>
+                )}
               </button>
               <time dateTime={item.created_at}>
                 {new Date(item.created_at).toLocaleString()}
@@ -156,6 +186,16 @@ function NotificationList({ userId }: { userId: string }) {
                 </button>
               )}
             </div>
+            {item.type === "user_follow" && (
+              <div className="notification-follow-action">
+                <FollowButton
+                  viewerId={userId}
+                  targetId={item.actor_id}
+                  followBack
+                  refreshKey={revision}
+                />
+              </div>
+            )}
             {!item.read_at && (
               <span
                 className="notification-dot"

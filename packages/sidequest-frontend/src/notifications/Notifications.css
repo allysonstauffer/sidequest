@@ -72,6 +72,43 @@
   flex-shrink: 0;
   margin-top: 10px;
 }
+.notification-follow-icon {
+  color: #b18fcf;
+  flex-shrink: 0;
+  margin-top: 10px;
+}
+.notification-item > .notification-follow-action {
+  flex: 0 1 auto;
+  max-width: 160px;
+}
+.app-shell
+  .notifications-page
+  .notification-follow-action
+  button {
+  white-space: nowrap;
+  background: #b18fcf;
+  color: #17131c;
+}
+.app-shell
+  .notifications-page
+  .notification-follow-action
+  button[aria-pressed="true"] {
+  background: transparent;
+  color: inherit;
+}
+@media (max-width: 480px) {
+  .notification-item {
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .notification-item > div:first-of-type {
+    flex-basis: calc(100% - 64px);
+  }
+  .notification-item > .notification-follow-action {
+    order: 1;
+    margin-left: 32px;
+  }
+}
 .notification-item time {
   display: block;
   color: #bcb0c8;
