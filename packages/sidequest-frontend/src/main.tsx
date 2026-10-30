@@ -4,12 +4,15 @@ import "./index.css";
 import App from "./App.tsx";
 import { AuthProvider } from "./auth/AuthProvider";
 import NotificationsProvider from "./notifications/NotificationsProvider";
+import UnreadMessagesProvider from "./messages/UnreadMessagesProvider";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <AuthProvider>
       <NotificationsProvider>
-        <App />
+        <UnreadMessagesProvider>
+          <App />
+        </UnreadMessagesProvider>
       </NotificationsProvider>
     </AuthProvider>
   </StrictMode>

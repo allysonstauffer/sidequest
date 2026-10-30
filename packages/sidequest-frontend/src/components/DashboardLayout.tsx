@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import LogoutButton from "./LogoutButton";
 import NotificationBell from "../components/NotificationBell";
+import UnreadMessagesBadge from "../messages/UnreadMessagesBadge";
 
 const imgIcon =
   "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
@@ -54,9 +55,10 @@ function DashboardLayout({
                 key={label}
                 to={to}
                 className={({ isActive }) =>
-                  `nav-item ${isActive ? "active" : ""}`
+                  `nav-item ${to === "/messages" ? "messages-link" : ""} ${isActive ? "active" : ""}`
                 }>
                 <span>{label}</span>
+                {to === "/messages" && <UnreadMessagesBadge />}
                 {window.location.pathname === to && (
                   <img
                     src={imgActiveMarker}

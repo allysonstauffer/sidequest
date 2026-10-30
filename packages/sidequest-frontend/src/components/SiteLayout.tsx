@@ -16,6 +16,7 @@ import "./SiteLayout.css";
 import { useAuth } from "../auth/useAuth";
 import LogoutButton from "./LogoutButton";
 import NotificationBell from "./NotificationBell";
+import UnreadMessagesBadge from "../messages/UnreadMessagesBadge";
 
 function SiteLayout() {
   const { session, loading } = useAuth();
@@ -38,6 +39,12 @@ function SiteLayout() {
             <NavLink to="/info">Info</NavLink>
             <NavLink to="/profile">Profile</NavLink>
             {session && <NotificationBell />}
+            {session && (
+              <NavLink to="/messages" className="messages-link">
+                Messages
+                <UnreadMessagesBadge />
+              </NavLink>
+            )}
             {session && (
               <NavLink to="/collaborations">
                 Collaborations
@@ -110,10 +117,11 @@ function SiteLayout() {
           <NavLink
             to="/messages"
             className={({ isActive }) =>
-              `sidebar-item${isActive ? " is-active" : ""}`
+              `sidebar-item messages-link${isActive ? " is-active" : ""}`
             }>
             <MessageCircle aria-hidden="true" />
             <span>Messages</span>
+            <UnreadMessagesBadge />
           </NavLink>
           <NavLink
             to="/settings"
@@ -171,10 +179,11 @@ function SiteLayout() {
         <NavLink
           to="/messages"
           className={({ isActive }) =>
-            `mobile-nav-item${isActive ? " is-active" : ""}`
+            `mobile-nav-item messages-link${isActive ? " is-active" : ""}`
           }>
           <MessageCircle aria-hidden="true" />
           <span>Messages</span>
+          <UnreadMessagesBadge />
         </NavLink>
         <NavLink
           to="/settings"
