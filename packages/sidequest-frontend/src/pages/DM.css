@@ -102,7 +102,10 @@
   cursor: pointer;
 }
 
-.app-shell .dm-sidebar .dm-search-result input[type="checkbox"] {
+.app-shell
+  .dm-sidebar
+  .dm-search-result
+  input[type="checkbox"] {
   display: block;
   width: 16px;
   height: 16px;
@@ -163,6 +166,10 @@
 }
 
 .app-shell .dm-room-list button {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
   text-align: left;
   overflow-wrap: anywhere;

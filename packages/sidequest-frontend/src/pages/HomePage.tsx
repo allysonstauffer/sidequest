@@ -4,10 +4,9 @@ import Recommendations from "../components/Recommendations";
 import ProjectFeed from "../components/ProjectFeed";
 import SidequestEvents from "../components/SidequestEvents";
 import { useAuth } from "../auth/useAuth";
-const imgIcon3 =
-    "/img/plus.png";
-const imgIcon4 =
-  "/img/messages.png";
+import UnreadMessagesBadge from "../messages/UnreadMessagesBadge";
+const imgIcon3 = "/img/plus.png";
+const imgIcon4 = "/img/messages.png";
 function getTimeOfDay(
   date: Date = new Date()
 ): "Morning" | "Afternoon" | "Evening" | "Night" {
@@ -54,9 +53,9 @@ function HomePage() {
             </Link>
             <Link
               to="/messages"
-              className="icon-button small-button has-alert"
-              aria-label="Notifications">
-              <img src={imgIcon4} alt="" />
+              className="icon-button small-button messages-link">
+              <img src={imgIcon4} alt="Messages" />
+              <UnreadMessagesBadge />
             </Link>
           </div>
         </header>
