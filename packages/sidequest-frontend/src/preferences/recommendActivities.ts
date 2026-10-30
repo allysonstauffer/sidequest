@@ -1,5 +1,6 @@
 import { SKILL_LEVELS, toSelection } from "./model.ts";
 import type {
+  HobbyId,
   Preference,
   SkillLevel
 } from "./model.ts";

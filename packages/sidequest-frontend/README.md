@@ -161,10 +161,13 @@ Sources:
 [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
-Shared projects use the Python upload API and Supabase. Public
-communities, profiles, and hobby preferences use the database
-setup described below. Message persistence remains a placeholder.
+Shared projects use the Python upload API and Supabase.
+Community and message persistence remain placeholders. Profiles
+and hobby preferences use the database setup described below.
 The frontend route guards control navigation; database
+Message persistence remains a placeholder. Public communities,
+profiles, and hobby preferences use the database setup described
+below. The frontend route guards control navigation; database
 permissions and Row Level Security enforce record access.
 
 ### Posting side quests
@@ -424,12 +427,12 @@ After applying it, verify a known new entry with
 and test saving a new hobby from onboarding. The total category
 count can exceed 450 if the database has additional categories.
 
-Future additions require a catalogue seed migration. Keep
-existing IDs stable. The regression tests check that this
+Future additions require updating the JSON and adding a new
+catalogue seed migration before releasing the matching frontend.
+Keep existing IDs stable. The regression tests check that this
 initial migration's seed matches the JSON. Recommendations still
 cover only Photography, Gardening, and Cooking; other hobbies
 show an explanation when no suggestions are available.
-
 ### Projects and sidequest events
 
 Projects are completed work stored in `public.projects`.
