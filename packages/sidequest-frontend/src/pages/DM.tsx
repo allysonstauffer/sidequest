@@ -97,12 +97,20 @@ export default function DM() {
   );
   const [roomName, setRoomName] = useState("");
   const [draft, setDraft] = useState("");
+  const draftRef = useRef<HTMLTextAreaElement>(null);
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const creatingRef = useRef(false);
   const sendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [readError, setReadError] = useState("");
+
+  useEffect(() => {
+    const field = draftRef.current;
+    if (!field) return;
+    field.style.height = "auto";
+    field.style.height = `${Math.min(field.scrollHeight, 128)}px`;
+  }, [draft]);
 
   useEffect(() => {
     activeRoomIdRef.current = activeRoomId;
@@ -601,17 +609,33 @@ export default function DM() {
             </div>
             <form
               className="dm-compose"
+              autoComplete="off"
               onSubmit={(event) => void sendMessage(event)}>
               <label className="dm-sr-only" htmlFor="dm-draft">
                 Write a message
               </label>
-              <input
+              <textarea
+                ref={draftRef}
                 id="dm-draft"
+                name="message"
+                rows={1}
+                autoComplete="off"
+                enterKeyHint="send"
                 value={draft}
                 onChange={(event) =>
                   setDraft(event.target.value)
                 }
-                placeholder="Write a message"
+                onKeyDown={(event) => {
+                  if (
+                    event.key === "Enter" &&
+                    !event.shiftKey &&
+                    !event.nativeEvent.isComposing
+                  ) {
+                    event.preventDefault();
+                    event.currentTarget.form?.requestSubmit();
+                  }
+                }}
+                placeholder="Message…"
                 disabled={!activeRoomId || sending}
               />
               <button
