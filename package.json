@@ -15,6 +15,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "test:database": "node --test supabase/tests/*.test.mjs",
     "dev": "fastapi dev packages/sidequest-backend/upload.py",
     "format": "prettier --write './**/*.{js,jsx,ts,tsx,css,md,json}' --config ./.prettierrc"
   },
@@ -22,6 +23,7 @@
     "packages/*"
   ],
   "devDependencies": {
+    "@electric-sql/pglite": "^0.5.13",
     "prettier": "^3.9.6"
   }
 }

@@ -15,6 +15,7 @@ import {
 import "./SiteLayout.css";
 import { useAuth } from "../auth/useAuth";
 import LogoutButton from "./LogoutButton";
+import NotificationBell from "./NotificationBell";
 
 function SiteLayout() {
   const { session, loading } = useAuth();
@@ -36,6 +37,7 @@ function SiteLayout() {
             <NavLink to="/feed">Feed</NavLink>
             <NavLink to="/info">Info</NavLink>
             <NavLink to="/profile">Profile</NavLink>
+            {session && <NotificationBell />}
             {session && (
               <NavLink to="/collaborations">
                 Collaborations

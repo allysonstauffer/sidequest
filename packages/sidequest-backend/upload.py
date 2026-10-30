@@ -129,6 +129,38 @@ def respond_to_collaboration(
     })
 
 
+def save_project_like(project_id: UUID, liked: bool, authorization: str | None):
+    client, _user = authenticated_client(authorization)
+    try:
+        result = client.rpc("set_project_like", {
+            "p_project_id": str(project_id), "p_liked": liked,
+        }).execute()
+    except PostgrestAPIError as exc:
+        if exc.code == "42501":
+            raise HTTPException(403, "This project is unavailable or you cannot like it.") from exc
+        logging.exception("Could not save project like")
+        raise HTTPException(502, "Could not save your like. Please try again.") from exc
+    except Exception as exc:
+        logging.exception("Like service unavailable")
+        raise HTTPException(502, "Could not save your like. Please try again.") from exc
+    data = result.data
+    if (not isinstance(data, dict) or data.get("project_id") != str(project_id)
+            or data.get("liked") is not liked
+            or type(data.get("like_count")) is not int or data["like_count"] < 0):
+        raise HTTPException(502, "The server did not confirm your like. Refresh before retrying.")
+    return data
+
+
+@app.post("/api/projects/{project_id}/like")
+def like_project(project_id: UUID, authorization: str | None = Header(default=None)):
+    return save_project_like(project_id, True, authorization)
+
+
+@app.delete("/api/projects/{project_id}/like")
+def unlike_project(project_id: UUID, authorization: str | None = Header(default=None)):
+    return save_project_like(project_id, False, authorization)
+
+
 @app.post("/api/upload")
 def upload(
     attachment: UploadFile = File(...),

@@ -31,14 +31,14 @@ import { compressImage } from "./components/compression";
 import { publishProject } from "./lib/projectApi";
 import { supabase } from "./lib/supabase";
 import CollaborationsPage from "./pages/CollaborationsPage";
-
+import NotificationsPage from "./pages/NotificationsPage";
+import ProjectDetailsPage from "./pages/ProjectDetailsPage";
+import NotificationBell from "./components/NotificationBell";
 
 const imgActiveMarker =
   "https://www.figma.com/api/mcp/asset/bb150a0e-c82a-43ef-aba3-d0cf68c53b30.svg";
 const imgIcon3 =
   "https://www.figma.com/api/mcp/asset/528c07f3-fe9a-438d-ab72-05773043bd94.svg";
-const imgIcon4 =
-  "https://www.figma.com/api/mcp/asset/f5d983c7-1d55-4601-9522-1669591869c0.svg";
 
 const navItems = [
   { label: "Home", to: "/feed" },
@@ -82,6 +82,22 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<RequireOnboarding />}>
             <Route path="/feed" element={<HomePage />} />
+            <Route
+              path="/notifications"
+              element={
+                <DashboardLayout>
+                  <NotificationsPage />
+                </DashboardLayout>
+              }
+            />
+            <Route
+              path="/projects/:projectId"
+              element={
+                <DashboardLayout>
+                  <ProjectDetailsPage />
+                </DashboardLayout>
+              }
+            />
             <Route
               path="/collaborations"
               element={
@@ -133,6 +149,7 @@ function DashboardLayout({
           <nav
             className="nav-list"
             aria-label="Primary navigation">
+            <NotificationBell />
             {navItems.map(({ label, to }) => (
               <NavLink
                 key={label}
@@ -189,12 +206,6 @@ function HomePage() {
               className="icon-button small-button"
               aria-label="Add">
               <img src={imgIcon3} alt="" />
-            </Link>
-            <Link
-              to="/messages"
-              className="icon-button small-button has-alert"
-              aria-label="Notifications">
-              <img src={imgIcon4} alt="" />
             </Link>
           </div>
         </header>
@@ -429,11 +440,11 @@ function SharePage() {
               type="checkbox"
               name="looking_for_collaborators"
               value="true"
-             disabled={isUploading}
+              disabled={isUploading}
             />
 
-          <span>I’m looking for help or collaborators</span>
-</label>
+            <span>I’m looking for help or collaborators</span>
+          </label>
           <div className="submit-row">
             <button
               type="submit"

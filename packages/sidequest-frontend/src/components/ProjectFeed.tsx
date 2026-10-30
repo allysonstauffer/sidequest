@@ -4,6 +4,11 @@ import { deleteProject as deleteProjectRequest } from "../lib/projectApi";
 import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
 import CollaborationRequestForm from "./CollaborationRequestForm";
 import { useAuth } from "../auth/useAuth";
+import LikeButton from "./LikeButton";
+import {
+  isLikeSummary,
+  type LikeSummary
+} from "../lib/likesApi";
 import "./ProjectFeed.css";
 
 type Project = {
@@ -19,13 +24,31 @@ type Project = {
 type ProjectFeedProps = {
   authorId?: string;
   accessToken?: string;
+  projectId?: string;
 };
 
-export default function ProjectFeed({
+export default function ProjectFeed(props: ProjectFeedProps) {
+  const { session } = useAuth();
+  return (
+    <ProjectFeedContent
+      key={`${session?.user.id ?? "guest"}:${props.projectId ?? "feed"}`}
+      {...props}
+    />
+  );
+}
+
+function ProjectFeedContent({
   authorId,
-  accessToken
+  accessToken,
+  projectId
 }: ProjectFeedProps) {
   const { session } = useAuth();
+  const userId = session?.user.id;
+  const [likes, setLikes] = useState<
+    Record<string, LikeSummary>
+  >({});
+  const [likesError, setLikesError] = useState("");
+  const [likesRetry, setLikesRetry] = useState(0);
   const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
@@ -54,8 +77,9 @@ export default function ProjectFeed({
             looking_for_collaborators
           `);
         if (authorId) query = query.eq("author_id", authorId);
+        if (projectId) query = query.eq("id", projectId);
         // Filter on the server before limiting the public feed to 20 results.
-        if (!authorId && collaboratorsOnly) {
+        if (!authorId && !projectId && collaboratorsOnly) {
           query = query.eq("looking_for_collaborators", true);
         }
         query = query.order("created_at", { ascending: false });
@@ -69,6 +93,40 @@ export default function ProjectFeed({
           return;
         }
         setProjects(data ?? []);
+        if (userId && data?.length) {
+          try {
+            const result = await supabase.rpc(
+              "get_project_like_summaries",
+              {
+                p_project_ids: data.map((project) => project.id)
+              }
+            );
+            if (
+              result.error ||
+              !Array.isArray(result.data) ||
+              !result.data.every(isLikeSummary)
+            ) {
+              throw new Error("Could not load likes.");
+            }
+            if (!active) return;
+            setLikes(
+              Object.fromEntries(
+                result.data.map((row: LikeSummary) => [
+                  row.project_id,
+                  row
+                ])
+              )
+            );
+            setLikesError("");
+          } catch {
+            if (!active) return;
+            setLikes({});
+            setLikesError(
+              "Could not load likes. You can still browse projects."
+            );
+          }
+        }
+        if (!active) return;
         setStatus("ready");
       } catch {
         if (active) setStatus("error");
@@ -79,7 +137,13 @@ export default function ProjectFeed({
     return () => {
       active = false;
     };
-  }, [authorId, collaboratorsOnly]);
+  }, [
+    authorId,
+    collaboratorsOnly,
+    projectId,
+    userId,
+    likesRetry
+  ]);
 
   async function deleteProject(project: Project) {
     if (!accessToken || !authorId || deletingId) return;
@@ -131,9 +195,13 @@ export default function ProjectFeed({
       className="project-feed"
       aria-labelledby="project-feed-title">
       <h2 id="project-feed-title">
-        {authorId ? "Your posts" : "Latest projects"}
+        {projectId
+          ? "Project"
+          : authorId
+            ? "Your posts"
+            : "Latest projects"}
       </h2>
-      {!authorId && (
+      {!authorId && !projectId && (
         <label className="collaboration-option">
           <input
             type="checkbox"
@@ -154,14 +222,26 @@ export default function ProjectFeed({
       )}
       {status === "ready" && projects.length === 0 && (
         <p>
-          {authorId
-            ? "You haven’t shared any projects yet."
-            : collaboratorsOnly
-              ? "No projects are looking for collaborators yet."
-              : "No projects yet."}
+          {projectId
+            ? "This project is unavailable or has been deleted."
+            : authorId
+              ? "You haven’t shared any projects yet."
+              : collaboratorsOnly
+                ? "No projects are looking for collaborators yet."
+                : "No projects yet."}
         </p>
       )}
       {deleteNotice && <p role="alert">{deleteNotice}</p>}
+      {likesError && (
+        <p role="alert">
+          {likesError}{" "}
+          <button
+            type="button"
+            onClick={() => setLikesRetry((value) => value + 1)}>
+            Retry likes
+          </button>
+        </p>
+      )}
       {status === "ready" && projects.length > 0 && (
         <div className="project-feed-list">
           {projects.map((project) => (
@@ -177,6 +257,20 @@ export default function ProjectFeed({
               )}
               <div className="project-feed-copy">
                 <h3>{project.title}</h3>
+                {userId && (
+                  <LikeButton
+                    projectId={project.id}
+                    title={project.title}
+                    userId={userId}
+                    summary={likes[project.id]}
+                    onChange={(summary) =>
+                      setLikes((current) => ({
+                        ...current,
+                        [project.id]: summary
+                      }))
+                    }
+                  />
+                )}
                 {project.looking_for_collaborators && (
                   <span className="project-collaboration-badge">
                     Looking for collaborators
