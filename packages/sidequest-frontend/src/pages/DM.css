@@ -224,6 +224,62 @@
   white-space: pre-wrap;
 }
 
+.app-shell .dm-image-link {
+  display: block;
+  max-width: 100%;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.app-shell .dm-message-image {
+  display: block;
+  width: auto;
+  max-width: min(100%, 340px);
+  max-height: 360px;
+  object-fit: contain;
+  border-radius: 10px;
+}
+
+.app-shell .dm-attachment-preview {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px;
+  border-radius: 14px;
+  background: #393840;
+}
+
+.app-shell .dm-attachment-preview img {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.app-shell .dm-attachment-preview span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.85rem;
+}
+
+.app-shell .dm-attachment-preview button,
+.app-shell .dm-image-error button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  min-height: 36px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #d8d8f6;
+  cursor: pointer;
+}
+
 .app-shell .dm-message strong,
 .app-shell .dm-message time {
   font-size: 0.75rem;
@@ -287,6 +343,13 @@
 
 .app-shell .dm-compose button:hover:not(:disabled) {
   background: #b18fcf20;
+}
+
+.app-shell .dm-compose .dm-attach-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px;
 }
 
 .app-shell .dm-error {

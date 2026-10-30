@@ -10,6 +10,16 @@ import { supabase } from "../lib/supabase";
 import DashboardLayout from "../components/DashboardLayout";
 import { useUnreadMessages } from "../messages/useUnreadMessages";
 import UnreadMessagesBadge from "../messages/UnreadMessagesBadge";
+import { ImagePlus, X } from "lucide-react";
+import { compressImage } from "../components/compression";
+import {
+  MESSAGE_FIELDS,
+  parseChatMessage,
+  sendChatMessage,
+  validateMessageImage,
+  type ChatMessage
+} from "../messages/chatMessages";
+import MessageImage from "../messages/MessageImage";
 import "./DM.css";
 
 type Contact = { id: string; username: string };
@@ -19,13 +29,7 @@ type Room = {
   created_at: string;
   participantIds: string[];
 };
-type Message = {
-  id: string;
-  room_id: string;
-  sender_id: string;
-  text: string;
-  created_at: string;
-};
+type Message = ChatMessage;
 
 function memberLabel(id: string, contacts: Contact[]) {
   return (
@@ -98,12 +102,46 @@ export default function DM() {
   const [roomName, setRoomName] = useState("");
   const [draft, setDraft] = useState("");
   const draftRef = useRef<HTMLTextAreaElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
+  const [attachment, setAttachment] = useState<{
+    roomId: string;
+    file: File;
+    previewUrl: string;
+  } | null>(null);
+  const pendingImage =
+    attachment?.roomId === activeRoomId ? attachment : null;
   const [creating, setCreating] = useState(false);
   const [sending, setSending] = useState(false);
   const creatingRef = useRef(false);
   const sendingRef = useRef(false);
   const [error, setError] = useState<string | null>(null);
   const [readError, setReadError] = useState("");
+
+  useEffect(() => {
+    return () => {
+      if (attachment)
+        URL.revokeObjectURL(attachment.previewUrl);
+    };
+  }, [attachment]);
+
+  function chooseImage(file: File | undefined) {
+    if (!file || !activeRoomId) return;
+    try {
+      validateMessageImage(file);
+      setAttachment({
+        roomId: activeRoomId,
+        file,
+        previewUrl: URL.createObjectURL(file)
+      });
+      setError(null);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not attach this image."
+      );
+    }
+  }
 
   useEffect(() => {
     const field = draftRef.current;
@@ -239,7 +277,7 @@ export default function DM() {
       try {
         const { data, error: historyError } = await supabase
           .from("messages")
-          .select("id, room_id, sender_id, text, created_at")
+          .select(MESSAGE_FIELDS)
           .eq("room_id", activeRoomId)
           .order("created_at", { ascending: false })
           .limit(100);
@@ -247,13 +285,16 @@ export default function DM() {
         if (historyError) {
           setError(historyError.message);
         } else {
+          const loadedMessages = (data ?? []).map(
+            parseChatMessage
+          );
           setMessageState((current) => ({
             roomId: activeRoomId,
             messages: mergeMessages(
               current.roomId === activeRoomId
                 ? current.messages
                 : [],
-              data ?? []
+              loadedMessages
             ),
             loaded: true
           }));
@@ -364,21 +405,26 @@ export default function DM() {
     event.preventDefault();
     const text = draft.trim();
     const roomId = activeRoomId;
-    if (!text || !roomId || !userId || sendingRef.current)
+    if (
+      (!text && !pendingImage) ||
+      !roomId ||
+      !userId ||
+      sendingRef.current
+    )
       return;
     sendingRef.current = true;
     setSending(true);
     setError(null);
     try {
-      const { data, error: sendError } = await supabase
-        .from("messages")
-        .insert({ room_id: roomId, sender_id: userId, text })
-        .select("id, room_id, sender_id, text, created_at")
-        .single();
-      if (sendError) {
-        setError(sendError.message);
-        return;
-      }
+      const image = pendingImage
+        ? await compressImage(pendingImage.file)
+        : null;
+      const data = await sendChatMessage(supabase, {
+        roomId,
+        userId,
+        text,
+        image
+      });
       if (activeRoomIdRef.current === roomId) {
         setMessageState((current) => ({
           roomId,
@@ -390,6 +436,13 @@ export default function DM() {
         }));
       }
       setDraft("");
+      if (pendingImage) setAttachment(null);
+    } catch (error) {
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Could not send your message. Please try again."
+      );
     } finally {
       sendingRef.current = false;
       setSending(false);
@@ -522,7 +575,11 @@ export default function DM() {
             />
             <button
               type="button"
-              disabled={creating || selectedUsers.length === 0}
+              disabled={
+                creating ||
+                sending ||
+                selectedUsers.length === 0
+              }
               onClick={() => void createChat()}>
               {creating ? "Creating…" : "Create chat"}
             </button>
@@ -538,6 +595,7 @@ export default function DM() {
                 <button
                   key={room.id}
                   type="button"
+                  disabled={sending}
                   aria-current={
                     room.id === activeRoomId
                       ? "page"
@@ -598,6 +656,20 @@ export default function DM() {
                           knownContacts
                         )}
                   </strong>
+                  {message.image_path && (
+                    <MessageImage
+                      key={message.image_path}
+                      path={message.image_path}
+                      sender={
+                        message.sender_id === userId
+                          ? "you"
+                          : memberLabel(
+                              message.sender_id,
+                              knownContacts
+                            )
+                      }
+                    />
+                  )}
                   <span>{message.text}</span>
                   <time dateTime={message.created_at}>
                     {new Date(
@@ -607,6 +679,22 @@ export default function DM() {
                 </p>
               ))}
             </div>
+            {pendingImage && (
+              <div className="dm-attachment-preview">
+                <img
+                  src={pendingImage.previewUrl}
+                  alt="Selected image preview"
+                />
+                <span>{pendingImage.file.name}</span>
+                <button
+                  type="button"
+                  disabled={sending}
+                  aria-label="Remove attached image"
+                  onClick={() => setAttachment(null)}>
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+            )}
             <form
               className="dm-compose"
               autoComplete="off"
@@ -614,6 +702,27 @@ export default function DM() {
               <label className="dm-sr-only" htmlFor="dm-draft">
                 Write a message
               </label>
+              <input
+                ref={imageInputRef}
+                className="dm-sr-only"
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                aria-label="Choose an image"
+                tabIndex={-1}
+                disabled={!activeRoomId || sending}
+                onChange={(event) => {
+                  chooseImage(event.target.files?.[0]);
+                  event.target.value = "";
+                }}
+              />
+              <button
+                type="button"
+                className="dm-attach-button"
+                aria-label="Attach image"
+                disabled={!activeRoomId || sending}
+                onClick={() => imageInputRef.current?.click()}>
+                <ImagePlus size={22} aria-hidden="true" />
+              </button>
               <textarea
                 ref={draftRef}
                 id="dm-draft"
@@ -641,9 +750,15 @@ export default function DM() {
               <button
                 type="submit"
                 disabled={
-                  !activeRoomId || !draft.trim() || sending
+                  !activeRoomId ||
+                  (!draft.trim() && !pendingImage) ||
+                  sending
                 }>
-                {sending ? "Sending…" : "Send"}
+                {sending
+                  ? pendingImage
+                    ? "Sending photo…"
+                    : "Sending…"
+                  : "Send"}
               </button>
             </form>
             {error && (
