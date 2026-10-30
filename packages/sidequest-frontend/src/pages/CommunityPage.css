@@ -1,0 +1,152 @@
+.community-create-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  align-items: end;
+  gap: 14px;
+  margin: 0 0 28px;
+  padding: 20px;
+  border: 1px solid rgba(231, 229, 228, 0.5);
+  border-radius: 14px;
+  background: #494850;
+  color: #d8d8f6;
+}
+
+.community-create-form label {
+  display: grid;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.community-create-form label:last-of-type {
+  grid-column: 1 / -1;
+}
+
+.app-shell .community-create-form input,
+.app-shell .community-create-form select,
+.app-shell .community-create-form textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  color: #ffffff;
+  font: inherit;
+}
+
+.app-shell .community-create-form input::placeholder,
+.app-shell .community-create-form textarea::placeholder {
+  color: #d3cedb;
+  opacity: 1;
+}
+
+.app-shell .community-create-form input:focus-visible,
+.app-shell .community-create-form select:focus-visible,
+.app-shell .community-create-form textarea:focus-visible,
+.app-shell .community-header-actions button:focus-visible,
+.app-shell .community-create-form button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.app-shell .community-create-form textarea {
+  resize: vertical;
+}
+
+.app-shell .community-create-form button[type="submit"] {
+  grid-column: 1 / -1;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 2px solid #e8dcf5;
+  border-radius: 10px;
+  background: #c9b2df;
+  color: #211b29;
+  font-weight: 700;
+}
+
+.app-shell
+  .community-create-form
+  button[type="submit"]:hover:not(:disabled) {
+  background: #e2d2f2;
+}
+
+.app-shell
+  .community-create-form
+  button[type="submit"]:disabled {
+  border-color: #b7adbf;
+  background: #62596b;
+  color: #ffffff;
+  cursor: wait;
+}
+
+.app-shell .community-header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.app-shell .community-header-actions .secondary-button {
+  border: 2px solid #d6c3e8;
+  background: #38313f;
+  color: #ffffff;
+}
+
+.app-shell .community-header-actions .secondary-button:hover {
+  background: #4b4055;
+}
+
+.app-shell .community-header-actions .primary-button {
+  border: 2px solid #e8dcf5;
+  background: #c9b2df;
+  color: #211b29;
+}
+
+.app-shell .community-header-actions .primary-button:hover {
+  background: #e2d2f2;
+}
+
+.app-shell .community-create-form [role="alert"] {
+  grid-column: 1 / -1;
+  color: #ffffff;
+}
+
+@media (max-width: 720px) {
+  .app-shell .community-header-actions {
+    width: 100%;
+  }
+}
+
+.community-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+}
+
+.community-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid rgba(231, 229, 228, 0.5);
+  border-radius: 16px;
+  background: #494850;
+  color: #d8d8f6;
+}
+
+.community-card .eyebrow,
+.community-card h3,
+.community-card p {
+  margin: 0;
+}
+
+.community-card h3 {
+  color: #f0e9f5;
+  font-size: 20px;
+}
+
+.community-card .community-creator-link {
+  color: #d8c6e8;
+  font-size: 13px;
+}

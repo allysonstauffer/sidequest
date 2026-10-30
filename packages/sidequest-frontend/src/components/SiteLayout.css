@@ -102,9 +102,10 @@
 .site-nav .site-nav-login {
   margin-left: 4px;
   padding: 9px 15px;
-  border: 1px solid var(--sq-accent);
+  border: 2px solid #c9b2df;
   border-radius: 10px;
-  color: var(--sq-accent);
+  background: #38313f;
+  color: #ffffff;
 }
 
 .site-nav .site-nav-login:hover,
@@ -175,7 +176,7 @@
   align-items: center;
   justify-content: center;
   padding: 0 17px;
-  border: 1px solid var(--sq-border);
+  border: 2px solid #c9b2df;
   border-radius: 12px;
   background: var(--sq-surface);
   color: var(--sq-text);
@@ -195,9 +196,9 @@
 }
 
 .site-button-primary {
-  border-color: var(--sq-accent);
-  background: var(--sq-accent);
-  color: var(--sq-accent-ink);
+  border-color: #e8dcf5;
+  background: #c9b2df;
+  color: #211b29;
 }
 
 .site-button-primary:hover {
@@ -223,18 +224,18 @@
   width: 100%;
   min-height: 46px;
   padding: 10px 13px;
-  border: 1px solid var(--sq-border);
+  border: 2px solid #c9b2df;
   border-radius: 10px;
   outline: none;
-  background: rgba(36, 36, 42, 0.88);
-  color: var(--sq-text);
+  background: #24232b;
+  color: #ffffff;
   transition:
     border-color 180ms ease,
     box-shadow 180ms ease;
 }
 
 .site-form input::placeholder {
-  color: rgba(151, 136, 151, 0.82);
+  color: #d3cedb;
 }
 
 .site-form input:focus {
@@ -273,10 +274,14 @@
 }
 
 .site-form input:focus-visible,
+.site-form select:focus-visible,
+.site-shell button:focus-visible,
+.site-shell a:focus-visible,
+.site-shell textarea:focus-visible,
 .site-button:focus-visible,
 .site-nav a:focus-visible,
 .site-brand:focus-visible {
-  outline: 2px solid var(--sq-accent);
+  outline: 3px solid #ffffff;
   outline-offset: 3px;
 }
 
@@ -319,4 +324,32 @@
 }
 .site-nav .logout-control {
   margin-top: 0;
+}
+
+.hobby-option {
+  display: grid;
+  gap: 8px;
+}
+
+.site-form .hobby-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.site-form input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  min-height: 0;
+  padding: 0;
+  accent-color: var(--sq-accent);
+}
+
+.site-form select {
+  min-height: 44px;
+  padding: 8px;
+  border: 2px solid #c9b2df;
+  border-radius: 10px;
+  background: #24232b;
+  color: #ffffff;
 }

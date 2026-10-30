@@ -1,0 +1,69 @@
+.creator-profile {
+  margin-bottom: 2rem;
+  padding: 1.5rem;
+  border: 1px solid var(--sq-border);
+  border-radius: 1rem;
+  background: var(--sq-surface);
+  color: var(--sq-text);
+}
+
+.creator-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.creator-profile-header h1 { margin: 0; }
+
+.creator-avatar {
+  width: 5rem;
+  height: 5rem;
+  flex: none;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.creator-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: var(--sq-accent);
+  color: var(--sq-accent-ink);
+  font-size: 2rem;
+  font-weight: 700;
+}
+
+.creator-follow-counts {
+  display: flex;
+  gap: 1.5rem;
+  margin: 1.25rem 0;
+}
+
+.creator-follow-counts div {
+  display: flex;
+  align-items: baseline;
+  gap: .4rem;
+}
+
+.creator-follow-counts dt {
+  color: var(--sq-muted);
+}
+
+.creator-follow-counts dd {
+  margin: 0;
+  color: var(--sq-text);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.creator-bio { white-space: pre-wrap; }
+.creator-links { display: flex; flex-wrap: wrap; gap: .75rem 1.25rem; padding-left: 1.25rem; }
+.creator-links a { color: var(--sq-text); }
+.creator-links a:hover { color: var(--sq-accent); }
+.creator-profile-form { margin-top: 1rem; }
+.creator-profile-form fieldset { border: 0; padding: 0; margin: 0; }
+.creator-link-fields { display: grid; grid-template-columns: minmax(8rem, 1fr) minmax(12rem, 2fr); gap: .5rem; margin: .5rem 0; }
+.creator-profile-actions { display: flex; gap: .75rem; }
+.creator-remove-picture { display: flex; align-items: center; gap: .5rem; }
+@media (max-width: 600px) {
+  .creator-link-fields { grid-template-columns: 1fr; }
+}

@@ -95,6 +95,23 @@ confirmation, confirmation resend, logout, and password
 recovery. Supabase manages users and passwords; no custom
 password table is needed.
 
+Google sign-in also uses Supabase Auth. Enable Google under
+Authentication → Providers in Supabase and enter the Google Web
+OAuth client ID and secret there. Add the Supabase callback URL shown
+on that provider page to the client's **Authorized redirect URIs**
+in Google Cloud. Add `http://localhost:5173/onboarding` to Supabase
+Authentication → URL Configuration → Redirect URLs (and the
+production equivalent when deployed). The Google client secret
+must stay in Supabase, not in a `VITE_` variable. The existing
+`VITE_GOOGLE_OAUTH_ID` is only for the separate Calendar permission
+prompt after RSVP.
+
+After Google sign-in, users without `display_name` choose a unique
+Sidequest username, then complete the existing interests step.
+Apply [`202610280009_unique_auth_usernames.sql`](../../supabase/migrations/202610280009_unique_auth_usernames.sql)
+to enforce case-insensitive uniqueness for email and Google users.
+Resolve any existing duplicate usernames before applying it.
+
 ### Local configuration
 
 Set these in `packages/sidequest-frontend/.env`:
@@ -106,6 +123,14 @@ VITE_SUPABASE_ANON_KEY=your-publishable-or-anon-key
 
 Use a frontend publishable or legacy anon key. Never use a
 secret/service-role key. Restart Vite after environment changes.
+
+From the repository root, start the app or run lint and build:
+
+```sh
+npm run dev --workspace=sidequest-frontend
+npm run lint --workspace=sidequest-frontend
+npm run build --workspace=sidequest-frontend
+```
 
 In your Supabase dashboard:
 
@@ -136,42 +161,10 @@ Sources:
 [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
-### Verification
-
-From the repository root:
-
-```sh
-npm run test:auth --workspace=sidequest-frontend
-npm run lint --workspace=sidequest-frontend
-npm run build --workspace=sidequest-frontend
-npm run dev --workspace=sidequest-frontend
-```
-
-`test:auth` runs the real components' form handlers and route
-declarations with mocked React hooks and Supabase responses. It
-makes no network requests and creates no accounts. It does not
-replace browser or live email testing.
-
-Manually verify with your project:
-
-1. Visit /feed and /profile while logged out; both redirect to
-   /login.
-2. Sign up with mismatched passwords; verify the error.
-3. Sign up with a new address, confirm its email, and reach
-   /feed.
-4. Log out, try an incorrect password, then log in correctly.
-5. Refresh a protected page; the session should persist.
-6. Request a confirmation resend and verify its link.
-7. Request a password reset, follow its link, save a new
-   password, log out, and verify the new password works and the
-   old one fails.
-8. Try an expired email link; it should offer a new link rather
-   than fail silently.
-
-Database features remain placeholders. Before adding private
-profile, project, or message tables, enforce access with
-Supabase Row Level Security policies. The frontend route guard
-alone does not restrict database access.
+Message persistence remains a placeholder. Public communities,
+profiles, and hobby preferences use the database setup described
+below. The frontend route guards control navigation; database
+permissions and Row Level Security enforce record access.
 
 ### Login and signup workflow
 
@@ -216,3 +209,100 @@ another confirmation email; it does not replace that account's
 original password. The existing-account message deliberately
 reveals account existence as part of this UX. No public user
 lookup or privileged browser credential is used.
+
+### Hobby and skill onboarding
+
+After authentication, `RequireOnboarding` checks the signed-in
+user's profile and saved hobbies. Users without a completion
+timestamp and at least one saved hobby go to `/onboarding`. That
+page requires authentication but is outside the completion
+guard, so users can finish onboarding or edit their choices.
+Password recovery stays outside the completion guard.
+
+The initial catalogue is Photography, Gardening, and Cooking.
+Each selection has its own level: Beginner, Intermediate,
+Advanced, or Expert. These values live in
+`src/preferences/model.ts` and must agree with the database
+constraints and save function. Unsupported or duplicate saved
+values produce an error rather than being silently removed.
+
+`InterestSkillPicker` displays choices. `usePreferenceDraft`
+owns selection, validation, and saving; `usePreferences` loads
+data and supports retry while ignoring stale responses. Both
+hooks depend on the small `PreferenceService` interface. The
+Supabase adapter performs reads and the RPC. `AuthProvider`
+continues to manage only the authentication session.
+
+Saving requires these existing database tables:
+
+- `public.profiles`: `id` (Auth user UUID), nullable profile
+  fields, and `onboarding_completed_at` (`timestamptz`).
+- `public.user_hobbies`: generated `id`, `user_id` referencing
+  `profiles.id`, `hobby`, and `experience_level`.
+
+Apply the repository migration
+[`202610150001_save_my_preferences.sql`](../../supabase/migrations/202610150001_save_my_preferences.sql)
+through your normal Supabase migration workflow or SQL Editor if
+the API cannot find `save_my_preferences(p_preferences)`. The
+function validates choices, derives the owner from `auth.uid()`,
+creates a missing profile without overwriting existing fields,
+locks that profile, replaces hobby rows, and sets the completion
+timestamp in one transaction. A failure rolls back the
+replacement. Execution is limited to the authenticated role and
+respects existing RLS policies.
+
+The migration assumes owner-write policies are already enabled
+for both tables. It preserves the team's public-read policies;
+preferences are not promised to be private. It also grants usage
+on the generated ID sequence when one exists. The skill
+constraint must permit all four exact, capitalized values. Keep
+the existing unique `(user_id, hobby)` constraint and foreign
+keys in place.
+
+The profile page displays saved interests and links back to the
+editor. The feed ranks 12 bundled starter activities by matching
+hobbies and difficulty at or below the user's level, with the
+nearest difficulty first. This catalogue covers all three
+hobbies and four levels. It is separate from shared project
+records; real project recommendations require a hobby/difficulty
+association in that schema.
+
+### Projects and sidequest events
+
+Projects are completed work stored in `public.projects`.
+Sidequests are upcoming public events stored separately in
+`public.sidequests`; users can RSVP through
+`public.sidequest_rsvps`. The profile shows the user's projects
+and upcoming hosted events. `/feed` lists public upcoming events
+with title/description search and hobby and recommended-skill
+filters, separate suggested activities, and completed projects
+from authors the current user follows.
+
+To add an RSVP to the attendee's Google Calendar, enable the Google
+Calendar API, create a Web application OAuth client in Google Cloud,
+and add the frontend origin to its authorized JavaScript origins.
+Set `VITE_GOOGLE_OAUTH_ID` to that public client ID in the frontend
+`.env` file. RSVPs are saved even if the attendee declines Google
+Calendar access or the Calendar request fails. Cancelling an RSVP
+currently does not remove a previously created Google Calendar event.
+
+Apply
+[`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)
+to create the event and RSVP tables and their row-level security
+policies. Existing project rows are not changed. The previous
+beginner-friendly project field remains in the database for
+compatibility, but completed project cards and the project form
+no longer show or use beginner/experience labels.
+
+Apply
+[`202610280004_user_follows.sql`](../../supabase/migrations/202610280004_user_follows.sql)
+to enable one-way follows. Users can follow other accounts from
+their public profile, and `/feed` then shows projects by those
+authors.
+
+Apply
+[`202610280005_communities.sql`](../../supabase/migrations/202610280005_communities.sql)
+to enable the community directory. Signed-in users can create
+public communities in the supported hobby categories. Creating a
+community does not add a separate membership or join
+relationship.
