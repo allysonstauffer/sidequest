@@ -1,14 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
-import { deleteProject as deleteProjectRequest } from "../lib/projectApi";
+import {
+  deleteProject as deleteProjectRequest,
+  updateProject as updateProjectRequest
+} from "../lib/projectApi";
 import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
 import CollaborationRequestForm from "./CollaborationRequestForm";
 import { useAuth } from "../auth/useAuth";
 import LikeButton from "./LikeButton";
-import {
-  isLikeSummary,
-  type LikeSummary
-} from "../lib/likesApi";
+import { isLikeSummary, type LikeSummary } from "../lib/likesApi";
+import { loadFollowedAuthorIds } from "../utils/followedProjectAuthors";
 import "./ProjectFeed.css";
 
 type Project = {
@@ -23,9 +25,48 @@ type Project = {
 
 type ProjectFeedProps = {
   authorId?: string;
+  followedById?: string;
   accessToken?: string;
+  title?: string;
   projectId?: string;
 };
+
+function parseProject(value: unknown): Project | null {
+  if (!value || typeof value !== "object") return null;
+
+  const project = value as Record<string, unknown>;
+  if (
+    typeof project.id !== "string" ||
+    typeof project.author_id !== "string" ||
+    typeof project.title !== "string" ||
+    typeof project.created_at !== "string" ||
+    typeof project.looking_for_collaborators !== "boolean" ||
+    (project.description !== null &&
+      typeof project.description !== "string") ||
+    (project.media_urls !== null &&
+      (!Array.isArray(project.media_urls) ||
+        !project.media_urls.every(
+          (url) => typeof url === "string"
+        )))
+  ) {
+    return null;
+  }
+
+  return {
+    id: project.id,
+    author_id: project.author_id,
+    title: project.title,
+    description:
+      typeof project.description === "string"
+        ? project.description
+        : null,
+    media_urls: Array.isArray(project.media_urls)
+      ? project.media_urls
+      : null,
+    created_at: project.created_at,
+    looking_for_collaborators: project.looking_for_collaborators
+  };
+}
 
 export default function ProjectFeed(props: ProjectFeedProps) {
   const { session } = useAuth();
@@ -39,68 +80,90 @@ export default function ProjectFeed(props: ProjectFeedProps) {
 
 function ProjectFeedContent({
   authorId,
+  followedById,
   accessToken,
+  title,
   projectId
 }: ProjectFeedProps) {
   const { session } = useAuth();
   const userId = session?.user.id;
-  const [likes, setLikes] = useState<
-    Record<string, LikeSummary>
-  >({});
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [likes, setLikes] = useState<Record<string, LikeSummary>>({});
   const [likesError, setLikesError] = useState("");
   const [likesRetry, setLikesRetry] = useState(0);
-  const [projects, setProjects] = useState<Project[]>([]);
+  const [collaboratorsOnly, setCollaboratorsOnly] = useState(false);
+  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
   const [deletingId, setDeletingId] = useState<string | null>(
     null
   );
-  const [deleteNotice, setDeleteNotice] = useState("");
-  const [collaboratorsOnly, setCollaboratorsOnly] =
-    useState(false);
-
-  const PUBLIC_FEED_LIMIT = 20;
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(
+    null
+  );
+  const [editingId, setEditingId] = useState<string | null>(
+    null
+  );
+  const [editTitle, setEditTitle] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [actionNotice, setActionNotice] = useState("");
 
   useEffect(() => {
     let active = true;
 
     async function loadProjects() {
+      setStatus("loading");
       try {
-        let query = supabase.from("projects").select(`
-            id,
-            author_id,
-            title,
-            description,
-            media_urls,
-            created_at,
-            looking_for_collaborators
-          `);
+        let followedAuthorIds: string[] | null = null;
+        if (followedById) {
+          followedAuthorIds = await loadFollowedAuthorIds(
+            async (followerId) => {
+              const { data, error } = await supabase
+                .from("user_follows")
+                .select("followed_id")
+                .eq("follower_id", followerId);
+              return { data, error };
+            },
+            followedById
+          );
+          if (followedAuthorIds.length === 0) {
+            if (!active) return;
+            setProjects([]);
+            setLikes({});
+            setLikesError("");
+            setStatus("ready");
+            return;
+          }
+        }
+
+        let query = supabase
+          .from("projects")
+          .select(
+            "id,author_id,title,description,media_urls,created_at,looking_for_collaborators"
+          )
+          .order("created_at", { ascending: false });
         if (authorId) query = query.eq("author_id", authorId);
         if (projectId) query = query.eq("id", projectId);
-        // Filter on the server before limiting the public feed to 20 results.
+        if (followedAuthorIds) {
+          query = query.in("author_id", followedAuthorIds);
+        }
         if (!authorId && !projectId && collaboratorsOnly) {
           query = query.eq("looking_for_collaborators", true);
         }
-        query = query.order("created_at", { ascending: false });
-        const { data, error } = await (authorId
-          ? query
-          : query.limit(PUBLIC_FEED_LIMIT));
+        if (!authorId && !followedById && !projectId) query = query.limit(20);
+        const { data, error } = await query;
+        if (error) throw new Error(error.message);
 
-        if (!active) return;
-        if (error) {
-          setStatus("error");
-          return;
-        }
-        setProjects(data ?? []);
-        if (userId && data?.length) {
+        const loadedProjects = (data ?? [])
+          .map(parseProject)
+          .filter((project): project is Project => project !== null);
+        if (userId && loadedProjects.length > 0) {
           try {
-            const result = await supabase.rpc(
-              "get_project_like_summaries",
-              {
-                p_project_ids: data.map((project) => project.id)
-              }
-            );
+            const result = await supabase.rpc("get_project_like_summaries", {
+              p_project_ids: loadedProjects.map((project) => project.id)
+            });
             if (
               result.error ||
               !Array.isArray(result.data) ||
@@ -109,24 +172,35 @@ function ProjectFeedContent({
               throw new Error("Could not load likes.");
             }
             if (!active) return;
-            setLikes(
-              Object.fromEntries(
-                result.data.map((row: LikeSummary) => [
-                  row.project_id,
-                  row
-                ])
-              )
-            );
+            setLikes(Object.fromEntries(result.data.map((row: LikeSummary) => [row.project_id, row])));
             setLikesError("");
           } catch {
             if (!active) return;
             setLikes({});
-            setLikesError(
-              "Could not load likes. You can still browse projects."
+            setLikesError("Could not load likes. You can still browse projects.");
+          }
+        } else {
+          setLikes({});
+          setLikesError("");
+        }
+        const authorIds = [...new Set(loadedProjects.map((project) => project.author_id))];
+        let names: Record<string, string> = {};
+        if (authorIds.length > 0) {
+          const profiles = await supabase
+            .from("creator_profiles")
+            .select("user_id,username")
+            .in("user_id", authorIds);
+          if (!profiles.error) {
+            names = Object.fromEntries(
+              (profiles.data ?? [])
+                .filter((profile) => typeof profile.username === "string")
+                .map((profile) => [profile.user_id, profile.username as string])
             );
           }
         }
         if (!active) return;
+        setProjects(loadedProjects);
+        setCreatorNames(names);
         setStatus("ready");
       } catch {
         if (active) setStatus("error");
@@ -137,13 +211,64 @@ function ProjectFeedContent({
     return () => {
       active = false;
     };
-  }, [
-    authorId,
-    collaboratorsOnly,
-    projectId,
-    userId,
-    likesRetry
-  ]);
+  }, [authorId, followedById, projectId, collaboratorsOnly, userId, likesRetry]);
+
+  function startEditing(project: Project) {
+    setOpenMenuId(null);
+    setEditingId(project.id);
+    setEditTitle(project.title);
+    setEditDescription(project.description ?? "");
+    setActionNotice("");
+  }
+
+  function cancelEditing() {
+    setEditingId(null);
+    setEditTitle("");
+    setEditDescription("");
+  }
+
+  async function saveProject(
+    event: FormEvent<HTMLFormElement>
+  ) {
+    event.preventDefault();
+    if (!accessToken || !editingId || savingId) return;
+
+    const title = editTitle.trim();
+    if (!title || title.length > 200) {
+      setActionNotice("Title must be 1 to 200 characters.");
+      return;
+    }
+
+    setSavingId(editingId);
+    setActionNotice("");
+    try {
+      await updateProjectRequest(editingId, accessToken, {
+        title,
+        description: editDescription.trim() || null
+      });
+
+      setProjects((current) =>
+        current.map((project) =>
+          project.id === editingId
+            ? {
+                ...project,
+                title,
+                description: editDescription.trim() || null
+              }
+            : project
+        )
+      );
+      cancelEditing();
+    } catch (error) {
+      setActionNotice(
+        error instanceof Error
+          ? error.message
+          : "Unable to update project."
+      );
+    } finally {
+      setSavingId(null);
+    }
+  }
 
   async function deleteProject(project: Project) {
     if (!accessToken || !authorId || deletingId) return;
@@ -155,35 +280,28 @@ function ProjectFeedContent({
       return;
 
     setDeletingId(project.id);
-    setDeleteNotice("");
+    setActionNotice("");
     try {
       const { data, error } = await supabase.auth.getSession();
-      if (
-        error ||
-        !data.session ||
-        data.session.user.id !== authorId
-      ) {
-        throw new Error(
-          "Please sign in again before deleting a post."
-        );
+      if (error || !data.session || data.session.user.id !== authorId) {
+        throw new Error("Please sign in again before deleting a post.");
       }
-      const result = await deleteProjectRequest(
-        project.id,
-        data.session.access_token
-      );
+      const result = await deleteProjectRequest(project.id, data.session.access_token);
       setProjects((current) =>
         current.filter((item) => item.id !== project.id)
       );
+      setOpenMenuId(null);
+      if (editingId === project.id) cancelEditing();
       if (!result.mediaCleanup) {
-        setDeleteNotice(
-          "Your post was deleted, but its image could not be removed."
+        setActionNotice(
+          "Project deleted, but its image could not be removed."
         );
       }
     } catch (error) {
-      setDeleteNotice(
+      setActionNotice(
         error instanceof Error
           ? error.message
-          : "Could not delete your post. Please try again."
+          : "Unable to delete project."
       );
     } finally {
       setDeletingId(null);
@@ -195,21 +313,14 @@ function ProjectFeedContent({
       className="project-feed"
       aria-labelledby="project-feed-title">
       <h2 id="project-feed-title">
-        {projectId
-          ? "Project"
-          : authorId
-            ? "Your posts"
-            : "Latest projects"}
+        {title ?? (projectId ? "Project" : authorId ? "Your posts" : "Latest projects")}
       </h2>
       {!authorId && !projectId && (
         <label className="collaboration-option">
           <input
             type="checkbox"
             checked={collaboratorsOnly}
-            onChange={(event) => {
-              setStatus("loading");
-              setCollaboratorsOnly(event.target.checked);
-            }}
+            onChange={(event) => setCollaboratorsOnly(event.target.checked)}
           />
           <span>Looking for collaborators only</span>
         </label>
@@ -217,27 +328,28 @@ function ProjectFeedContent({
       {status === "loading" && <p>Loading projects…</p>}
       {status === "error" && (
         <p role="alert">
-          Could not load posts. Please refresh and try again.
+          Unable to load projects. Check your connection and try
+          again.
         </p>
       )}
       {status === "ready" && projects.length === 0 && (
         <p>
           {projectId
             ? "This project is unavailable or has been deleted."
-            : authorId
-              ? "You haven’t shared any projects yet."
-              : collaboratorsOnly
-                ? "No projects are looking for collaborators yet."
-                : "No projects yet."}
+            : followedById
+              ? "No projects from people you follow yet."
+              : authorId
+                ? "You haven’t shared any projects yet."
+                : collaboratorsOnly
+                  ? "No projects are looking for collaborators yet."
+                  : "No projects yet."}
         </p>
       )}
-      {deleteNotice && <p role="alert">{deleteNotice}</p>}
+      {actionNotice && <p role="alert">{actionNotice}</p>}
       {likesError && (
         <p role="alert">
           {likesError}{" "}
-          <button
-            type="button"
-            onClick={() => setLikesRetry((value) => value + 1)}>
+          <button type="button" onClick={() => setLikesRetry((value) => value + 1)}>
             Retry likes
           </button>
         </p>
@@ -248,6 +360,50 @@ function ProjectFeedContent({
             <article
               className="project-feed-card"
               key={project.id}>
+              {authorId && accessToken && authorId === userId && (
+                <div className="project-card-actions">
+                  <button
+                    className="project-menu-trigger"
+                    type="button"
+                    aria-label={`Actions for ${project.title}`}
+                    aria-expanded={openMenuId === project.id}
+                    aria-controls={`project-menu-${project.id}`}
+                    disabled={
+                      deletingId !== null || savingId !== null
+                    }
+                    onClick={() =>
+                      setOpenMenuId((current) =>
+                        current === project.id
+                          ? null
+                          : project.id
+                      )
+                    }>
+                    <span aria-hidden="true">⋯</span>
+                  </button>
+                  {openMenuId === project.id && (
+                    <div
+                      className="project-card-menu"
+                      id={`project-menu-${project.id}`}>
+                      <button
+                        type="button"
+                        onClick={() => startEditing(project)}>
+                        Edit project
+                      </button>
+                      <button
+                        type="button"
+                        className="project-card-menu-delete"
+                        disabled={deletingId !== null}
+                        onClick={() =>
+                          void deleteProject(project)
+                        }>
+                        {deletingId === project.id
+                          ? "Deleting…"
+                          : "Delete project"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
               {project.media_urls?.[0] && (
                 <img
                   src={project.media_urls[0]}
@@ -264,12 +420,18 @@ function ProjectFeedContent({
                     userId={userId}
                     summary={likes[project.id]}
                     onChange={(summary) =>
-                      setLikes((current) => ({
-                        ...current,
-                        [project.id]: summary
-                      }))
+                      setLikes((current) => ({ ...current, [project.id]: summary }))
                     }
                   />
+                )}
+                {!authorId && (
+                  <Link
+                    className="project-author-link"
+                    to={`/profile/${project.author_id}`}>
+                    {creatorNames[project.author_id]
+                      ? `By @${creatorNames[project.author_id]}`
+                      : "View creator profile"}
+                  </Link>
                 )}
                 {project.looking_for_collaborators && (
                   <span className="project-collaboration-badge">
@@ -278,10 +440,7 @@ function ProjectFeedContent({
                 )}
                 <details className="project-details">
                   <summary>Project details</summary>
-                  <p>
-                    {project.description ||
-                      "No description provided."}
-                  </p>
+                  <p>{project.description || "No description provided."}</p>
                   <p>
                     Collaboration status:{" "}
                     {project.looking_for_collaborators
@@ -303,36 +462,64 @@ function ProjectFeedContent({
                       userId={session.user.id}
                     />
                   )}
-                {authorId && accessToken && (
+                {authorId && accessToken && authorId === userId && (
                   <ProjectCollaborationToggle
                     projectId={project.id}
                     active={project.looking_for_collaborators}
-                    disabled={deletingId !== null}
-                    onChange={(active) => {
+                    disabled={deletingId !== null || savingId !== null}
+                    onChange={(active) =>
                       setProjects((current) =>
                         current.map((item) =>
                           item.id === project.id
-                            ? {
-                                ...item,
-                                looking_for_collaborators:
-                                  active
-                              }
+                            ? { ...item, looking_for_collaborators: active }
                             : item
                         )
-                      );
-                    }}
+                      )
+                    }
                   />
                 )}
-                {authorId && accessToken && (
-                  <button
-                    className="project-delete-button"
-                    type="button"
-                    disabled={deletingId !== null}
-                    onClick={() => void deleteProject(project)}>
-                    {deletingId === project.id
-                      ? "deleting"
-                      : "delete?"}
-                  </button>
+                {editingId === project.id && (
+                  <form
+                    className="project-edit-form"
+                    onSubmit={(event) =>
+                      void saveProject(event)
+                    }>
+                    <label>
+                      <span>Title</span>
+                      <input
+                        value={editTitle}
+                        maxLength={200}
+                        required
+                        onChange={(event) =>
+                          setEditTitle(event.target.value)
+                        }
+                      />
+                    </label>
+                    <label>
+                      <span>Description</span>
+                      <textarea
+                        value={editDescription}
+                        onChange={(event) =>
+                          setEditDescription(event.target.value)
+                        }
+                      />
+                    </label>
+                    <div className="project-edit-actions">
+                      <button
+                        type="button"
+                        onClick={cancelEditing}
+                        disabled={savingId === project.id}>
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        disabled={savingId === project.id}>
+                        {savingId === project.id
+                          ? "Saving…"
+                          : "Save changes"}
+                      </button>
+                    </div>
+                  </form>
                 )}
               </div>
             </article>

@@ -4,6 +4,7 @@ import type {
 } from "@supabase/supabase-js";
 import { supabase } from "../lib/supabase";
 import type { AuthService } from "./authService";
+import { isUsernameAvailable } from "./usernameAvailability";
 
 function errorMessage(error: AuthError): string {
   switch (error.code) {
@@ -16,8 +17,9 @@ function errorMessage(error: AuthError): string {
     case "email_already_confirmed":
       return "This email is already confirmed. Log in instead.";
     case "email_exists":
-    case "user_already_exists":
       return "An account with this email already exists. Log in instead.";
+    case "user_already_exists":
+      return "An account with this username already exists. Try another username"
     default:
       return error.status === 429
         ? "Too many attempts. Please wait and try again."
@@ -26,10 +28,13 @@ function errorMessage(error: AuthError): string {
 }
 
 export function createSupabaseAuthService(
-  client: Pick<SupabaseClient, "auth">,
+  client: Pick<SupabaseClient, "auth" | "rpc">,
   getConfirmationRedirect: () => string
 ): AuthService {
   return {
+    isUsernameAvailable(username) {
+      return isUsernameAvailable(client, username);
+    },
     async signIn({ email, password }) {
       const submittedEmail = email.trim();
       try {
@@ -63,14 +68,22 @@ export function createSupabaseAuthService(
       }
     },
 
-    async signUp({ email, password }) {
+    async signUp({ email, password, user }) {
       const submittedEmail = email.trim();
+      const username = user.trim();
       try {
+        if (!(await isUsernameAvailable(client, username))) {
+          return { status: "username-exists" };
+        }
         const { data, error } = await client.auth.signUp({
           email: submittedEmail,
           password,
+
           options: {
-            emailRedirectTo: getConfirmationRedirect()
+            emailRedirectTo: getConfirmationRedirect(),
+            data: {
+              display_name: username
+            }
           }
         });
         if (
@@ -80,6 +93,9 @@ export function createSupabaseAuthService(
           return { status: "account-exists" };
         }
         if (error) {
+          if (!(await isUsernameAvailable(client, username))) {
+            return { status: "username-exists" };
+          }
           return {
             status: "error",
             message: errorMessage(error)

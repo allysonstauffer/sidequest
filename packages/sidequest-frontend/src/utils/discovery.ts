@@ -1,7 +1,4 @@
-import type {
-  DiscoveryContentItem,
-  HobbyCommunity
-} from "../types/discovery.ts";
+import type { HobbyCommunity } from "../types/discovery.ts";
 
 export function searchCommunitiesByTag(
   communities: HobbyCommunity[],
@@ -15,13 +12,4 @@ export function searchCommunitiesByTag(
       tag.toLocaleLowerCase().includes(normalizedTerm)
     )
   );
-}
-
-export function filterBeginnerFriendlyContent(
-  content: DiscoveryContentItem[],
-  beginnerFriendlyOnly: boolean
-): DiscoveryContentItem[] {
-  return beginnerFriendlyOnly
-    ? content.filter((item) => item.beginnerFriendly)
-    : content;
 }

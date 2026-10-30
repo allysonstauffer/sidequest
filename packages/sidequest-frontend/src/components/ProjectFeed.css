@@ -20,6 +20,7 @@
 }
 
 .project-feed-card {
+  position: relative;
   overflow: hidden;
   border: 1px solid rgba(231, 229, 228, 0.5);
   border-radius: 16px;
@@ -42,6 +43,13 @@
   font-size: 18px;
 }
 
+.project-feed-copy .project-author-link {
+  display: inline-block;
+  margin-bottom: 10px;
+  color: #d8c6e8;
+  font-size: 13px;
+}
+
 .project-feed-copy p {
   margin: 0 0 12px;
   white-space: pre-wrap;
@@ -52,23 +60,34 @@
   font-size: 13px;
 }
 
-.project-delete-button {
-  display: block;
-  margin-top: 14px;
-  padding: 8px 12px;
-  border: 1px solid #f08f8f;
-  border-radius: 8px;
-  background: transparent;
-  color: #ffd0d0;
+.project-card-actions {
+  position: absolute;
+  z-index: 1;
+  top: 10px;
+  right: 10px;
+}
+
+.project-menu-trigger {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  border-radius: 50%;
+  background: rgba(32, 31, 39, 0.88);
+  color: white;
   font: inherit;
+  font-size: 28px;
+  line-height: 1;
   cursor: pointer;
 }
 
-.project-delete-button:hover {
-  background: rgba(240, 143, 143, 0.15);
+.project-menu-trigger:hover,
+.project-menu-trigger:focus-visible {
+  background: #302e39;
 }
 
-.project-delete-button:disabled {
+.project-menu-trigger:disabled {
   opacity: 0.6;
   cursor: wait;
 }
@@ -106,6 +125,27 @@
   border-radius: 8px;
   background: transparent;
   color: #e4cff6;
+}
+.project-card-menu {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  display: grid;
+  min-width: 150px;
+  padding: 6px;
+  border: 1px solid rgba(231, 229, 228, 0.35);
+  border-radius: 10px;
+  background: #302e39;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.project-card-menu button,
+.project-edit-actions button {
+  padding: 8px 10px;
+  border: 2px solid #c9b2df;
+  border-radius: 6px;
+  background: #38313f;
+  color: #ffffff;
   font: inherit;
   text-align: left;
   cursor: pointer;
@@ -115,7 +155,18 @@
   background: rgba(177, 143, 207, 0.15);
 }
 
-.project-feed .project-collaboration-button:disabled {
+.project-feed .project-collaboration-button:disabled,
+.project-card-menu button:hover,
+.project-edit-actions button:hover:not(:disabled) {
+  background: #5b5864;
+}
+
+.project-card-menu .project-card-menu-delete {
+  color: #ffd0d0;
+}
+
+.project-card-menu button:disabled,
+.project-edit-actions button:disabled {
   opacity: 0.6;
   cursor: wait;
 }
@@ -137,4 +188,56 @@
 .collaboration-option input:focus-visible {
   outline: 3px solid #b18fcf;
   outline-offset: 3px;
+}
+.project-edit-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.project-edit-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.project-edit-form input,
+.project-edit-form textarea {
+  width: 100%;
+  padding: 9px 10px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  color: #ffffff;
+  font: inherit;
+}
+
+.project-edit-form input:focus-visible,
+.project-edit-form textarea:focus-visible,
+.project-edit-actions button:focus-visible,
+.project-card-menu button:focus-visible,
+.project-menu-trigger:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.project-edit-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.project-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.project-edit-actions button[type="submit"] {
+  border-color: #e8dcf5;
+  background: #c9b2df;
+  color: #24212a;
+}
+
+.project-edit-actions
+  button[type="submit"]:hover:not(:disabled) {
+  background: #e2d2f2;
 }

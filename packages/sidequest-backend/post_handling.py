@@ -25,7 +25,7 @@ if frontend_origins:
     app.add_middleware(
         CORSMiddleware,
         allow_origins=frontend_origins,
-        allow_methods=["POST", "DELETE"],
+        allow_methods=["POST", "PATCH", "DELETE"],
         allow_headers=["Authorization", "Content-Type"],
     )
 
@@ -161,6 +161,84 @@ def unlike_project(project_id: UUID, authorization: str | None = Header(default=
     return save_project_like(project_id, False, authorization)
 
 
+class ProjectUpdate(BaseModel):
+    title: str
+    description: str | None = None
+
+
+class AccountDeletion(BaseModel):
+    password: str
+
+
+@app.delete("/api/account")
+def delete_account(
+    request: AccountDeletion,
+    authorization: str | None = Header(default=None),
+):
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Sign in to delete your account.")
+
+    token = authorization.removeprefix("Bearer ").strip()
+    if not token or not request.password:
+        raise HTTPException(status_code=400, detail="Enter your current password.")
+
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(status_code=503, detail="Account deletion is unavailable.")
+
+    admin = create_client(url, key)
+    try:
+        user = admin.auth.get_user(token).user
+    except Exception as exc:
+        raise HTTPException(status_code=401, detail="Sign in again.") from exc
+    if not user or not user.email:
+        raise HTTPException(status_code=401, detail="Sign in again.")
+
+    # Use a separate client so password verification cannot replace the admin
+    # client's service-role session before the privileged deletion call.
+    verifier = create_client(url, key)
+    try:
+        verified = verifier.auth.sign_in_with_password(
+            {"email": user.email, "password": request.password}
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=403, detail="Incorrect password.") from exc
+    if not verified.user or verified.user.id != user.id:
+        raise HTTPException(status_code=403, detail="Incorrect password.")
+
+    bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
+    folder = f"images/{user.id}"
+    try:
+        storage = admin.storage.from_(bucket)
+        while True:
+            files = storage.list(folder, {"limit": 100, "offset": 0})
+            paths = [
+                f"{folder}/{item['name']}"
+                for item in files
+                if item.get("id") and item.get("name")
+            ]
+            if not paths:
+                break
+            storage.remove(paths)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=502,
+            detail="Could not remove your uploaded files. Your account was not deleted.",
+        ) from exc
+
+    try:
+        admin.auth.admin.delete_user(str(user.id))
+    except Exception as exc:
+        logging.exception("Account deletion failed for user %s", user.id)
+        raise HTTPException(
+            status_code=502,
+            detail="Could not delete your account. Your uploaded files may have been removed.",
+        ) from exc
+
+    return {"deleted": True}
+
+
 @app.post("/api/upload")
 def upload(
     attachment: UploadFile = File(...),
@@ -169,84 +247,86 @@ def upload(
     looking_for_collaborators: bool = Form(False),
     authorization: str | None = Header(default=None),
 ):
+
     title = title.strip()
     description = description.strip()
+
+    #no title or title too long
     if not title or len(title) > 200:
-        raise HTTPException(
-            status_code=400, detail="Title must be 1 to 200 characters."
-        )
+        raise HTTPException(status_code=400, detail="err: must be 1 to 200 characters.")
 
     supabase, user = authenticated_client(authorization)
 
     original = attachment.file.read(MAX_UPLOAD_BYTES + 1)
-    if len(original) > MAX_UPLOAD_BYTES:
-        raise HTTPException(
-            status_code=413, detail="Choose an image smaller than 10 MB."
-        )
 
+    #if file size is too large, error out
+    if len(original) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="image file toooo large")
+
+    #try to open file, if file isn't a proper file format, error out, elif it's pixel size is too large, error out
     try:
         with Image.open(io.BytesIO(original)) as source:
+
             if source.format not in {"JPEG", "PNG", "WEBP"}:
-                raise HTTPException(
-                    status_code=400, detail="Choose a JPEG, PNG, or WebP image."
-                )
+                raise HTTPException(status_code=400, detail="choose the right type of image")
+
             if source.width * source.height > Image.MAX_IMAGE_PIXELS:
-                raise HTTPException(
-                    status_code=413, detail="Choose an image under 25 megapixels."
-                )
+                raise HTTPException(status_code=413, detail="image toooo large")
+
             image = ImageOps.exif_transpose(source)
 
         image.thumbnail((1920, 1080))
+
         if image.mode in {"RGBA", "LA"} or "transparency" in image.info:
             background = Image.new("RGBA", image.size, "white")
             image = Image.alpha_composite(background, image.convert("RGBA"))
 
         output = io.BytesIO()
         image.convert("RGB").save(output, format="JPEG", quality=80, optimize=True)
-    except (
-        UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError
-    ) as exc:
-        raise HTTPException(
-            status_code=400,
-            detail="This image could not be read. Choose another image.",
-        ) from exc
+
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=400, detail="this is NOT an image") from exc
 
     bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
     path = f"images/{user.id}/{uuid4().hex}.jpg"
     storage = supabase.storage.from_(bucket)
+
+    #actual supabase insertion time, try uploading file into our storage, else err if didn't work
     try:
         storage.upload(
             path=path,
             file=output.getvalue(),
             file_options={"content-type": "image/jpeg"},
         )
+
     except Exception as exc:
         logging.exception("Project image upload failed")
         raise HTTPException(
             status_code=502, detail="Could not upload the image. Please try again."
         ) from exc
 
+    public_url = storage.get_public_url(path)
+
+    #then add the resulting url into a table, which holds their title and description
     try:
-        public_url = storage.get_public_url(path)
-        result = (
-            supabase.table("projects")
-            .insert(
-                {
-                    "author_id": str(user.id),
-                    "title": title,
-                    "description": description or None,
-                    "media_urls": [public_url],
-                    "looking_for_collaborators": looking_for_collaborators,
-                }
-            )
-            .execute()
-        )
+        result = supabase.table("projects").insert(
+            {
+                "author_id": str(user.id),
+                "title": title,
+                "description": description or None,
+                "media_urls": [public_url],
+                "looking_for_collaborators": looking_for_collaborators,
+            }
+        ).execute()
+
         if not result.data:
-            raise RuntimeError("Project insert returned no record")
+            raise RuntimeError("nope")
+
     except Exception as exc:
         logging.exception("Project save failed")
         try:
             storage.remove([path])
+
         except Exception:
             logging.exception("Could not clean up image after project save failed")
         if isinstance(exc, PostgrestAPIError) and exc.code == "42501":
@@ -258,6 +338,35 @@ def upload(
             status_code=502, detail="Could not save your post. Please try again."
         ) from exc
 
+    return {"project": result.data[0]}
+
+
+@app.patch("/api/upload")
+def update_upload(
+    id: UUID,
+    project: ProjectUpdate,
+    authorization: str | None = Header(default=None),
+):
+    client, user = authenticated_client(authorization)
+    title = project.title.strip()
+    if not title or len(title) > 200:
+        raise HTTPException(status_code=400, detail="Title must be 1 to 200 characters.")
+    description = project.description.strip() if project.description else None
+    try:
+        result = (
+            client.table("projects")
+            .update({"title": title, "description": description or None})
+            .eq("id", str(id))
+            .eq("author_id", str(user.id))
+            .select("id,title,description,created_at,media_urls")
+            .execute()
+        )
+        if not result.data:
+            raise HTTPException(status_code=404, detail="Post not found.")
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail="Could not update post.") from exc
     return {"project": result.data[0]}
 
 
@@ -274,6 +383,8 @@ def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
             .execute()
             .data
         )
+
+    #cant find the post
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Could not find post.") from exc
 
@@ -281,6 +392,8 @@ def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
         raise HTTPException(status_code=404, detail="Post not found.")
 
     project = rows[0]
+
+    #try deleting the post, if not error
     try:
         result = (
             supabase.table("projects")
@@ -290,10 +403,13 @@ def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
             .select("id")
             .execute()
         )
+
         if not result.data:
             raise HTTPException(status_code=404, detail="Post not found.")
+
     except HTTPException:
         raise
+
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Could not delete post.") from exc
 
@@ -301,17 +417,22 @@ def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
     prefix = f"/storage/v1/object/public/{bucket}/"
     owner_prefix = f"images/{user.id}/"
     storage_paths = []
+
+    #asking supabase to remove the post image from the storage
     for media_url in project.get("media_urls") or []:
         parsed = urlparse(media_url)
         path = unquote(parsed.path)
+
         if parsed.netloc == urlparse(url).netloc and path.startswith(prefix):
             object_path = path[len(prefix):]
             if object_path.startswith(owner_prefix):
                 storage_paths.append(object_path)
 
     if storage_paths:
+
         try:
             supabase.storage.from_(bucket).remove(storage_paths)
+
         except Exception:
             logging.exception("Post %s was deleted, but image cleanup failed", id)
             return {"deleted": True, "media_cleanup": False}

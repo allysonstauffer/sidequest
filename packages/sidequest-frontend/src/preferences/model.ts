@@ -1,8 +1,6 @@
-import { isHobbyId, MAX_HOBBIES } from "./hobbyCatalogue.ts";
-import type { HobbyId } from "./hobbyCatalogue.ts";
+import { MAX_HOBBIES } from "./hobbyCatalogue.ts";
 
 export { HOBBIES } from "./hobbyCatalogue.ts";
-export type { HobbyId } from "./hobbyCatalogue.ts";
 
 export const SKILL_LEVELS = [
   "Beginner",
@@ -10,6 +8,8 @@ export const SKILL_LEVELS = [
   "Advanced",
   "Expert"
 ] as const;
+
+export type HobbyId = string;
 
 export type SkillLevel = (typeof SKILL_LEVELS)[number];
 
@@ -42,7 +42,8 @@ export function isPreference(
   const row = value as Record<string, unknown>;
 
   return (
-    isHobbyId(row.hobby) &&
+    typeof row.hobby === "string" &&
+    row.hobby.length > 0 &&
     SKILL_LEVELS.some((level) => level === row.experience_level)
   );
 }

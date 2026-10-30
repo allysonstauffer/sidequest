@@ -95,6 +95,23 @@ confirmation, confirmation resend, logout, and password
 recovery. Supabase manages users and passwords; no custom
 password table is needed.
 
+Google sign-in also uses Supabase Auth. Enable Google under
+Authentication → Providers in Supabase and enter the Google Web
+OAuth client ID and secret there. Add the Supabase callback URL shown
+on that provider page to the client's **Authorized redirect URIs**
+in Google Cloud. Add `http://localhost:5173/onboarding` to Supabase
+Authentication → URL Configuration → Redirect URLs (and the
+production equivalent when deployed). The Google client secret
+must stay in Supabase, not in a `VITE_` variable. The existing
+`VITE_GOOGLE_OAUTH_ID` is only for the separate Calendar permission
+prompt after RSVP.
+
+After Google sign-in, users without `display_name` choose a unique
+Sidequest username, then complete the existing interests step.
+Apply [`202610280009_unique_auth_usernames.sql`](../../supabase/migrations/202610280009_unique_auth_usernames.sql)
+to enforce case-insensitive uniqueness for email and Google users.
+Resolve any existing duplicate usernames before applying it.
+
 ### Local configuration
 
 Set these in `packages/sidequest-frontend/.env`:
@@ -144,9 +161,9 @@ Sources:
 [redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls),
 [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).
 
-Shared projects use the Python upload API and Supabase.
-Community and message persistence remain placeholders. Profiles
-and hobby preferences use the database setup described below.
+Shared projects use the Python upload API and Supabase. Public
+communities, profiles, and hobby preferences use the database
+setup described below. Message persistence remains a placeholder.
 The frontend route guards control navigation; database
 permissions and Row Level Security enforce record access.
 
@@ -407,9 +424,48 @@ After applying it, verify a known new entry with
 and test saving a new hobby from onboarding. The total category
 count can exceed 450 if the database has additional categories.
 
-Future additions require updating the JSON and adding a new
-catalogue seed migration before releasing the matching frontend.
-Keep existing IDs stable. The regression tests check that this
+Future additions require a catalogue seed migration. Keep
+existing IDs stable. The regression tests check that this
 initial migration's seed matches the JSON. Recommendations still
 cover only Photography, Gardening, and Cooking; other hobbies
 show an explanation when no suggestions are available.
+
+### Projects and sidequest events
+
+Projects are completed work stored in `public.projects`.
+Sidequests are upcoming public events stored separately in
+`public.sidequests`; users can RSVP through
+`public.sidequest_rsvps`. The profile shows the user's projects
+and upcoming hosted events. `/feed` lists public upcoming events
+with title/description search and hobby and recommended-skill
+filters, separate suggested activities, and completed projects
+from authors the current user follows.
+
+To add an RSVP to the attendee's Google Calendar, enable the Google
+Calendar API, create a Web application OAuth client in Google Cloud,
+and add the frontend origin to its authorized JavaScript origins.
+Set `VITE_GOOGLE_OAUTH_ID` to that public client ID in the frontend
+`.env` file. RSVPs are saved even if the attendee declines Google
+Calendar access or the Calendar request fails. Cancelling an RSVP
+currently does not remove a previously created Google Calendar event.
+
+Apply
+[`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)
+to create the event and RSVP tables and their row-level security
+policies. Existing project rows are not changed. The previous
+beginner-friendly project field remains in the database for
+compatibility, but completed project cards and the project form
+no longer show or use beginner/experience labels.
+
+Apply
+[`202610280004_user_follows.sql`](../../supabase/migrations/202610280004_user_follows.sql)
+to enable one-way follows. Users can follow other accounts from
+their public profile, and `/feed` then shows projects by those
+authors.
+
+Apply
+[`202610280005_communities.sql`](../../supabase/migrations/202610280005_communities.sql)
+to enable the community directory. Signed-in users can create
+public communities in the supported hobby categories. Creating a
+community does not add a separate membership or join
+relationship.

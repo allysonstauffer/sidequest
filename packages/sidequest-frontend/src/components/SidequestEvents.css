@@ -1,0 +1,200 @@
+.sidequest-events {
+  width: 100%;
+  margin: 24px 0;
+  color: #d8d8f6;
+}
+
+.sidequest-events h2 {
+  margin: 0 0 16px;
+  font-size: 24px;
+}
+
+.sidequest-events-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.sidequest-create-button,
+.sidequest-create-form button,
+.sidequest-event-card button,
+.sidequest-events [role="alert"] button {
+  min-height: 40px;
+  padding: 8px 14px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #494850;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sidequest-create-form,
+.sidequest-event-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  align-items: end;
+  gap: 14px;
+  margin: 16px 0 22px;
+}
+
+.sidequest-create-form label,
+.sidequest-event-filters label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  color: #d8d8f6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sidequest-create-form input,
+.sidequest-create-form textarea,
+.sidequest-create-form select,
+.sidequest-event-filters input,
+.sidequest-event-filters select {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  color: #ffffff;
+  font: inherit;
+}
+
+.sidequest-create-form textarea {
+  resize: vertical;
+}
+
+.sidequest-create-form button:disabled,
+.sidequest-event-card button:disabled {
+  cursor: wait;
+  border-color: #b7adbf;
+  background: #62596b;
+  color: #ffffff;
+}
+
+.sidequest-clear-filters {
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #38313f;
+  color: #ffffff;
+  font: inherit;
+  cursor: pointer;
+}
+
+.sidequest-events input:focus-visible,
+.sidequest-events select:focus-visible,
+.sidequest-events textarea:focus-visible,
+.sidequest-events button:focus-visible {
+  outline: 3px solid #ffffff;
+  outline-offset: 3px;
+}
+
+.sidequest-event-list {
+  display: grid;
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, 290px), 1fr)
+  );
+  gap: 16px;
+}
+
+.sidequest-event-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid rgba(231, 229, 228, 0.5);
+  border-radius: 14px;
+  background: #494850;
+}
+
+.sidequest-event-actions {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 1;
+}
+
+.sidequest-event-card .sidequest-event-menu-trigger {
+  display: grid;
+  width: 40px;
+  min-height: 40px;
+  padding: 0;
+  place-items: center;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #38313f;
+  color: #ffffff;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.sidequest-event-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  padding: 5px;
+  border: 1px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  box-shadow: 0 8px 20px rgb(0 0 0 / 30%);
+}
+
+.sidequest-event-card .sidequest-event-menu button {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.sidequest-event-card .sidequest-event-menu button:hover {
+  background: #494850;
+}
+
+.sidequest-create-form.sidequest-edit-form {
+  width: 100%;
+  margin: 0;
+}
+
+.sidequest-edit-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.sidequest-event-card h3 {
+  margin: 0 0 8px;
+  color: #f0e9f5;
+}
+
+.sidequest-event-host-link {
+  display: inline-block;
+  margin: 2px 0 6px;
+  color: #d8c6e8;
+  font-size: 13px;
+}
+
+.sidequest-event-card p {
+  margin: 6px 0;
+  color: #d8d8f6;
+  white-space: pre-wrap;
+}
+
+.sidequest-event-card .sidequest-event-meta {
+  color: #c4b4cf;
+  font-size: 12px;
+  font-weight: 700;
+}

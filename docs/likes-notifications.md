@@ -44,7 +44,7 @@ in this migration.
 - `likesApi.ts` sends POST to like and DELETE to unlike.
   Explicit actions make retries safe. Both requests carry the
   current user's token to FastAPI.
-- `upload.py` validates authentication and calls
+- `post_handling.py` validates authentication and calls
   `set_project_like` using that token. The database function
   respects project visibility and writes only the caller's like.
   The `(project_id, user_id)` unique constraint prevents

@@ -1,16 +1,16 @@
 .landing-shell {
-  --paper: #f7f8f3;
-  --ink: #1f2522;
-  --muted: #606a63;
-  --line: #dce2d9;
-  --coral: #f05a47;
-  --blue: #3b64e8;
-  --lime: #d6f36a;
-  --nav-bg: #0b0b0b;
-  --nav-border: #302321;
-  --nav-text: #fff8f6;
-  --nav-muted: #c7b8b5;
-  --nav-accent: var(--coral);
+  --paper: #2c2c34;
+  --ink: #d8d8f6;
+  --muted: #978897;
+  --line: #56545e;
+  --coral: #b18fcf;
+  --blue: #b18fcf;
+  --lime: #494850;
+  --nav-bg: #24242a;
+  --nav-border: #56545e;
+  --nav-text: #d8d8f6;
+  --nav-muted: #978897;
+  --nav-accent: #b18fcf;
   min-height: 100vh;
   background: var(--paper);
   color: var(--ink);
@@ -26,7 +26,7 @@
 }
 
 .landing-shell .project-feed-card {
-  background: #fff;
+  background: #494850;
   border-color: var(--line);
 }
 
@@ -49,29 +49,29 @@
 }
 
 .landing-shell .sidebar-wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 11px;
-  width: fit-content;
+  position: relative;
+  display: block;
+  width: 186px;
+  height: 48px;
   margin: 0 28px 0 0;
-  color: var(--nav-text);
-  font-family: "Space Grotesk", sans-serif;
-  font-size: 21px;
-  font-weight: 700;
+  overflow: hidden;
+  border-radius: 10px;
   text-decoration: none;
 }
 
-.landing-shell .sidebar-mark {
-  display: grid;
-  width: 34px;
-  aspect-ratio: 1;
-  place-items: center;
-  border-radius: 11px;
-  background: var(--nav-accent);
-  color: #21120f;
-  font-family: "DM Sans", sans-serif;
-  font-size: 23px;
-  line-height: 1;
+.landing-shell .sidebar-wordmark img {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 220px;
+  max-width: none;
+  height: 220px;
+  transform: translate(-50%, -50%);
+}
+
+.landing-shell .sidebar-wordmark:focus-visible {
+  outline: 2px solid var(--nav-accent);
+  outline-offset: 3px;
 }
 
 .landing-shell .sidebar-caption {
@@ -120,7 +120,7 @@
 }
 
 .landing-shell .sidebar-item.is-active {
-  background: #3a1b17;
+  background: #494850;
   color: var(--nav-accent);
 }
 
@@ -141,7 +141,7 @@
   border: 0;
   border-radius: 10px;
   background: var(--nav-accent);
-  color: #21120f;
+  color: #2c2c34;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -170,7 +170,7 @@
   min-height: 790px;
   background-color: var(--paper);
   background-image: radial-gradient(
-    #1f252212 0.8px,
+    #d8d8f61f 0.8px,
     transparent 0.8px
   );
   background-size: 24px 24px;
@@ -202,7 +202,7 @@
   place-items: center;
   border-radius: 50%;
   background: var(--coral);
-  color: white;
+  color: #2c2c34;
   font-family: "DM Sans", sans-serif;
   font-size: 22px;
   line-height: 1;
@@ -235,7 +235,7 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: var(--blue);
+  background: #d8d8f6;
 }
 
 .landing-shell .hero-copy h1 {
@@ -300,7 +300,7 @@
 
 .landing-shell .discover-section {
   padding: 112px max(32px, calc((100vw - 1160px) / 2)) 120px;
-  background: #fff;
+  background: #494850;
 }
 
 .landing-shell .section-intro {
@@ -333,7 +333,7 @@
   isolation: isolate;
   min-width: 0;
   overflow: hidden;
-  border: 1px solid #1f252214;
+  border: 1px solid var(--line);
   border-radius: 8px;
 }
 
@@ -345,11 +345,11 @@
 
 .landing-shell .feature-card-discover {
   background: var(--blue);
-  color: #fff;
+  color: #2c2c34;
 }
 
 .landing-shell .feature-card-connect {
-  background: #f5d2c9;
+  background: #56545e;
 }
 
 .landing-shell .feature-card-copy {
@@ -394,19 +394,19 @@
 
 .landing-shell .feature-card-discover h3,
 .landing-shell .feature-card-discover p {
-  color: #fff;
+  color: #2c2c34;
 }
 
 .landing-shell .feature-card p {
   max-width: 290px;
   margin: 0;
-  color: #1f2522cc;
+  color: #d8d8f6cc;
   font-size: 14px;
   line-height: 1.6;
 }
 
 .landing-shell .feature-card-discover p {
-  color: #ffffffd9;
+  color: #2c2c34;
 }
 
 .landing-shell .feature-card-image {
@@ -444,10 +444,10 @@
   width: 76px;
   aspect-ratio: 1;
   place-items: center;
-  border: 1px solid #fff;
+  border: 1px solid var(--ink);
   border-radius: 50%;
   background: var(--coral);
-  color: #fff;
+  color: #2c2c34;
   font-size: 9px;
   font-weight: 700;
   text-align: center;
@@ -485,7 +485,7 @@
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
     border-top: 1px solid var(--nav-border);
     background: var(--nav-bg);
-    box-shadow: 0 -8px 24px #0b0b0b22;
+  box-shadow: 0 -8px 24px #19191e99;
   }
 
   .landing-shell .mobile-nav-item {
@@ -514,7 +514,7 @@
   }
 
   .landing-shell .mobile-nav-item.is-active {
-    background: #3a1b17;
+    background: #494850;
     color: var(--nav-accent);
   }
 

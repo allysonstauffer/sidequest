@@ -120,6 +120,10 @@ test("invalid, duplicate and excessive selections are rejected", () => {
       hobby: "invented-hobby",
       experience_level: "Beginner"
     }),
+    true
+  );
+  assert.equal(
+    isPreference({ hobby: "", experience_level: "Beginner" }),
     false
   );
   assert.equal(
@@ -151,14 +155,11 @@ test("invalid, duplicate and excessive selections are rejected", () => {
     )!,
     /up to 3/
   );
-  // Conversion must not silently discard unknown IDs and overwrite saved interests.
-  const invalid = toPreferences({
+  // Dynamic category IDs must survive conversion; the database validates membership.
+  const dynamic = toPreferences({
     "invented-hobby": "Beginner"
   });
-  assert.match(
-    validatePreferences(invalid)!,
-    /available hobby/
-  );
+  assert.equal(validatePreferences(dynamic), null);
 });
 
 test("recommendations handle new hobbies without assigning unrelated activities", () => {

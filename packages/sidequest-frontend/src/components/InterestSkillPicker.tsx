@@ -1,10 +1,10 @@
 import { useId, useState } from "react";
 import { SKILL_LEVELS } from "../preferences/model";
 import {
-  HOBBIES,
   MAX_HOBBIES,
   searchHobbies
 } from "../preferences/hobbyCatalogue";
+import type { HobbyCategory } from "../hobbies/useHobbyCategories";
 import type {
   HobbySelection,
   SkillLevel
@@ -13,6 +13,7 @@ import "./InterestSkillPicker.css";
 
 interface Props {
   value: HobbySelection;
+  categories: HobbyCategory[];
   onChange: (next: HobbySelection) => void;
   disabled?: boolean;
 }
@@ -21,16 +22,25 @@ const PAGE_SIZE = 20;
 
 export default function InterestSkillPicker({
   value,
+  categories,
   onChange,
   disabled = false
 }: Props) {
   const id = useId();
   const [query, setQuery] = useState("");
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const selected = HOBBIES.filter(({ id }) =>
+  const selected = categories.filter(({ id }) =>
     Object.hasOwn(value, id)
   );
-  const matches = searchHobbies(query);
+  const normalizedQuery = query.trim().toLocaleLowerCase();
+  const catalogueMatches = new Set(searchHobbies(query).map(({ id }) => id));
+  const matches = normalizedQuery
+    ? categories.filter(
+        ({ id, name }) =>
+          catalogueMatches.has(id) ||
+          name.toLocaleLowerCase().includes(normalizedQuery)
+      )
+    : categories;
   const atLimit = selected.length >= MAX_HOBBIES;
 
   function removeHobby(hobbyId: string) {
@@ -55,7 +65,7 @@ export default function InterestSkillPicker({
           <p>Search below to add your first hobby.</p>
         ) : (
           <ul className="hobby-selected-list">
-            {selected.map(({ id: hobbyId, label }) => (
+            {selected.map(({ id: hobbyId, name: label }) => (
               <li key={hobbyId} className="hobby-selected">
                 <div className="hobby-selected-heading">
                   <strong>{label}</strong>
@@ -110,7 +120,7 @@ export default function InterestSkillPicker({
           }}
         />
         <p id={`${id}-hint`}>
-          Search {HOBBIES.length} hobbies by name or keyword.
+          Search {categories.length} hobbies by name or keyword.
         </p>
       </div>
 
@@ -126,7 +136,7 @@ export default function InterestSkillPicker({
           aria-label="Hobby search results">
           {matches
             .slice(0, visibleCount)
-            .map(({ id: hobbyId, label }) => {
+            .map(({ id: hobbyId, name: label }) => {
               const isSelected = Object.hasOwn(value, hobbyId);
               return (
                 <li key={hobbyId} className="hobby-result">

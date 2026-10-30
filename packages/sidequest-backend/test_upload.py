@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 from supabase import create_client
 
-import upload
+import post_handling as upload
 
 
 class PostingTests(unittest.TestCase):

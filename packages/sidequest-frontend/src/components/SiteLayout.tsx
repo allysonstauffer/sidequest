@@ -72,10 +72,10 @@ function SiteLayout() {
           className="sidebar-wordmark"
           to="/"
           aria-label="SideQuest home">
-          <span className="sidebar-mark" aria-hidden="true">
-            s
-          </span>
-          <span>sidequest</span>
+          <img
+            src="/branding/sidequest-wordmark-dark-alt.png"
+            alt="SideQuest"
+          />
         </Link>
         <p className="sidebar-caption">YOUR SPACE</p>
 

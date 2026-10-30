@@ -7,7 +7,7 @@ import httpx
 from fastapi.testclient import TestClient
 from supabase import create_client
 
-import upload
+import post_handling as upload
 
 
 class CollaborationTests(unittest.TestCase):

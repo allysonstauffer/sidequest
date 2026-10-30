@@ -46,7 +46,7 @@ other users' open projects. The form first checks for an
 existing request and then posts a message through
 `collaborationApi.ts` to FastAPI.
 
-The two FastAPI routes in `upload.py` validate input and the
+The two FastAPI routes in `post_handling.py` validate input and the
 user's token, then call database functions using that same
 token. The request function uses the caller's permissions, so
 existing project visibility rules still apply. A database

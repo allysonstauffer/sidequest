@@ -1,6 +1,5 @@
 import { SKILL_LEVELS, toSelection } from "./model.ts";
 import type {
-  HobbyId,
   Preference,
   SkillLevel
 } from "./model.ts";
@@ -9,7 +8,7 @@ export interface Activity {
   id: string;
   title: string;
   description: string;
-  hobby: HobbyId;
+  hobby: string;
   difficulty: SkillLevel;
 }
 

@@ -54,3 +54,25 @@ export async function deleteProject(
   }
   return { mediaCleanup: result.media_cleanup !== false };
 }
+
+export async function updateProject(
+  id: string,
+  accessToken: string,
+  changes: { title: string; description: string | null }
+) {
+  const response = await fetch(
+    apiUrl(`/api/upload?id=${encodeURIComponent(id)}`),
+    {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(changes)
+    }
+  );
+  const result = await readResult(response);
+  if (result?.project?.id !== id) {
+    throw new Error("The server did not confirm your changes. Refresh before trying again.");
+  }
+}
