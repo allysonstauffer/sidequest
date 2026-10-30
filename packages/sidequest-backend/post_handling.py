@@ -182,6 +182,8 @@ def unlike_project(project_id: UUID, authorization: str | None = Header(default=
 class ProjectUpdate(BaseModel):
     title: str
     description: str | None = None
+    beginner_friendly: bool = False
+    skill_level: Literal["Beginner", "Intermediate", "Advanced", "Expert"] | None = None
 
 
 class AccountDeletion(BaseModel):
@@ -263,6 +265,8 @@ def upload(
     title: str = Form(...),
     description: str = Form(""),
     looking_for_collaborators: bool = Form(False),
+    beginner_friendly: bool = Form(False),
+    skill_level: str = Form(""),
     authorization: str | None = Header(default=None),
 ):
 
@@ -272,6 +276,9 @@ def upload(
     #no title or title too long
     if not title or len(title) > 200:
         raise HTTPException(status_code=400, detail="err: must be 1 to 200 characters.")
+    skill_level = skill_level.strip()
+    if skill_level and skill_level not in {"Beginner", "Intermediate", "Advanced", "Expert"}:
+        raise HTTPException(status_code=400, detail="Choose a valid experience level.")
 
     supabase, user = authenticated_client(authorization)
 
@@ -334,6 +341,8 @@ def upload(
                 "description": description or None,
                 "media_urls": [public_url],
                 "looking_for_collaborators": looking_for_collaborators,
+                "beginner_friendly": beginner_friendly,
+                "skill_level": skill_level or None,
             }
         ).execute()
 
@@ -370,13 +379,18 @@ def update_upload(
     if not title or len(title) > 200:
         raise HTTPException(status_code=400, detail="Title must be 1 to 200 characters.")
     description = project.description.strip() if project.description else None
+    changes = {"title": title, "description": description or None}
+    if "beginner_friendly" in project.model_fields_set:
+        changes["beginner_friendly"] = project.beginner_friendly
+    if "skill_level" in project.model_fields_set:
+        changes["skill_level"] = project.skill_level
     try:
         result = (
             client.table("projects")
-            .update({"title": title, "description": description or None})
+            .update(changes)
             .eq("id", str(id))
             .eq("author_id", str(user.id))
-            .select("id,title,description,created_at,media_urls")
+            .select("id,title,description,created_at,media_urls,beginner_friendly,skill_level")
             .execute()
         )
         if not result.data:

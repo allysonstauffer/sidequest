@@ -455,10 +455,13 @@ currently does not remove a previously created Google Calendar event.
 Apply
 [`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)
 to create the event and RSVP tables and their row-level security
-policies. Existing project rows are not changed. The previous
-beginner-friendly project field remains in the database for
-compatibility, but completed project cards and the project form
-no longer show or use beginner/experience labels.
+policies. Existing project rows are not changed. Apply
+[`202610280001_beginner_friendly_projects.sql`](../../supabase/migrations/202610280001_beginner_friendly_projects.sql)
+and
+[`202610280002_project_feed_filters.sql`](../../supabase/migrations/202610280002_project_feed_filters.sql)
+before using project tags and filters. Authors can mark a project
+beginner-friendly and choose an experience level when posting or
+editing. The feed filters these fields before limiting results.
 
 Apply
 [`202610280004_user_follows.sql`](../../supabase/migrations/202610280004_user_follows.sql)

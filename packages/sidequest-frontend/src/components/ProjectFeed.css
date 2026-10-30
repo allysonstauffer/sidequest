@@ -96,7 +96,29 @@
   display: flex;
   align-items: center;
   gap: 10px;
+}
+
+.project-feed-filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
   margin-bottom: 18px;
+}
+
+.project-skill-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-skill-filter select {
+  padding: 7px 10px;
+  border: 1px solid #c9b2df;
+  border-radius: 8px;
+  background: #302e39;
+  color: #fff;
+  font: inherit;
 }
 
 .project-feed .collaboration-option input {
@@ -114,6 +136,27 @@
   background: rgba(177, 143, 207, 0.15);
   color: #e4cff6;
   font-size: 13px;
+}
+
+.project-beginner-badge,
+.project-skill-badge {
+  display: inline-block;
+  margin: 0 8px 12px 0;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 13px;
+}
+
+.project-beginner-badge {
+  border: 1px solid #a8bf70;
+  background: #edf4d7;
+  color: #40541e;
+}
+
+.project-skill-badge {
+  border: 1px solid #e6a85e;
+  background: #fff0dc;
+  color: #7a3d08;
 }
 
 .project-feed .project-collaboration-button {
@@ -201,7 +244,8 @@
 }
 
 .project-edit-form input,
-.project-edit-form textarea {
+.project-edit-form textarea,
+.project-edit-form select {
   width: 100%;
   padding: 9px 10px;
   border: 2px solid #c9b2df;
@@ -211,8 +255,20 @@
   font: inherit;
 }
 
+.project-edit-form .project-edit-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-edit-form .project-edit-checkbox input {
+  width: auto;
+}
+
 .project-edit-form input:focus-visible,
 .project-edit-form textarea:focus-visible,
+.project-edit-form select:focus-visible,
+.project-skill-filter select:focus-visible,
 .project-edit-actions button:focus-visible,
 .project-card-menu button:focus-visible,
 .project-menu-trigger:focus-visible {

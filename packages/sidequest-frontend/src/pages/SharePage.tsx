@@ -6,6 +6,7 @@ import { publishProject } from "../lib/projectApi";
 import { compressImage } from "../components/compression";
 import { supabase } from "../lib/supabase";
 import SidequestEvents from "../components/SidequestEvents";
+import { SKILL_LEVELS } from "../preferences/model";
 
 function SharePage() {
   const [notice, setNotice] = useState("");
@@ -122,6 +123,24 @@ function SharePage() {
               disabled={isUploading}
               required
             />
+          </label>
+          <label className="field-group">
+            <span>Experience required</span>
+            <select name="skill_level" disabled={isUploading} defaultValue="">
+              <option value="">No specific experience</option>
+              {SKILL_LEVELS.map((level) => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          </label>
+          <label className="collaboration-option">
+            <input
+              type="checkbox"
+              name="beginner_friendly"
+              value="true"
+              disabled={isUploading}
+            />
+            <span>Beginner-friendly project</span>
           </label>
           <label className="collaboration-option">
             <input

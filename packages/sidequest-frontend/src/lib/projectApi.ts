@@ -1,3 +1,5 @@
+import type { SkillLevel } from "../preferences/model";
+
 function apiUrl(path: string) {
   const baseUrl = import.meta.env?.VITE_API_BASE_URL ?? "";
   return `${baseUrl.replace(/\/+$/, "")}${path}`;
@@ -58,7 +60,12 @@ export async function deleteProject(
 export async function updateProject(
   id: string,
   accessToken: string,
-  changes: { title: string; description: string | null }
+  changes: {
+    title: string;
+    description: string | null;
+    beginner_friendly: boolean;
+    skill_level: SkillLevel | null;
+  }
 ) {
   const response = await fetch(
     apiUrl(`/api/upload?id=${encodeURIComponent(id)}`),
