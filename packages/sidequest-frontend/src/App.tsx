@@ -30,6 +30,8 @@ import { useAuth } from "./auth/useAuth";
 import { compressImage } from "./components/compression";
 import { publishProject } from "./lib/projectApi";
 import { supabase } from "./lib/supabase";
+import CollaborationsPage from "./pages/CollaborationsPage";
+
 
 const imgActiveMarker =
   "https://www.figma.com/api/mcp/asset/bb150a0e-c82a-43ef-aba3-d0cf68c53b30.svg";
@@ -43,6 +45,7 @@ const navItems = [
   { label: "Community", to: "/community" },
   { label: "Search", to: "/search" },
   { label: "Messages", to: "/messages" },
+  { label: "Collaborations", to: "/collaborations" },
   { label: "Settings", to: "/settings" }
 ];
 
@@ -79,6 +82,14 @@ function App() {
         <Route element={<RequireAuth />}>
           <Route element={<RequireOnboarding />}>
             <Route path="/feed" element={<HomePage />} />
+            <Route
+              path="/collaborations"
+              element={
+                <DashboardLayout>
+                  <CollaborationsPage />
+                </DashboardLayout>
+              }
+            />
             <Route
               path="/community"
               element={<CommunityPage />}
@@ -418,10 +429,11 @@ function SharePage() {
               type="checkbox"
               name="looking_for_collaborators"
               value="true"
-              disabled={isUploading}
+             disabled={isUploading}
             />
-            <span>I’m looking for help or collaborators</span>
-          </label>
+
+          <span>I’m looking for help or collaborators</span>
+</label>
           <div className="submit-row">
             <button
               type="submit"

@@ -1,4 +1,9 @@
-import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
+import {
+  Link,
+  NavLink,
+  Outlet,
+  useLocation
+} from "react-router-dom";
 import {
   House,
   LogIn,
@@ -22,13 +27,20 @@ function SiteLayout() {
           <Link to="/" className="site-brand">
             SideQuest
           </Link>
-          <nav className="site-nav" aria-label="Main navigation">
+          <nav
+            className="site-nav"
+            aria-label="Main navigation">
             <NavLink to="/" end>
               Home
             </NavLink>
             <NavLink to="/feed">Feed</NavLink>
             <NavLink to="/info">Info</NavLink>
             <NavLink to="/profile">Profile</NavLink>
+            {session && (
+              <NavLink to="/collaborations">
+                Collaborations
+              </NavLink>
+            )}
             {!loading &&
               (session ? (
                 <LogoutButton />
@@ -111,16 +123,15 @@ function SiteLayout() {
           </NavLink>
         </nav>
 
-        {!loading && (
-          session ? (
+        {!loading &&
+          (session ? (
             <LogoutButton />
           ) : (
             <Link to="/login" className="login-button">
               <LogIn aria-hidden="true" />
               <span>Log In</span>
             </Link>
-          )
-        )}
+          ))}
       </aside>
 
       <main className="page-content">

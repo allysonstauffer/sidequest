@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { deleteProject as deleteProjectRequest } from "../lib/projectApi";
 import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
+import CollaborationRequestForm from "./CollaborationRequestForm";
+import { useAuth } from "../auth/useAuth";
 import "./ProjectFeed.css";
 
 type Project = {
   id: string;
+  author_id: string;
   title: string;
   description: string | null;
   media_urls: string[] | null;
@@ -22,6 +25,7 @@ export default function ProjectFeed({
   authorId,
   accessToken
 }: ProjectFeedProps) {
+  const { session } = useAuth();
   const [projects, setProjects] = useState<Project[]>([]);
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
@@ -42,6 +46,7 @@ export default function ProjectFeed({
       try {
         let query = supabase.from("projects").select(`
             id,
+            author_id,
             title,
             description,
             media_urls,
@@ -195,6 +200,15 @@ export default function ProjectFeed({
                     project.created_at
                   ).toLocaleDateString()}
                 </time>
+                {session &&
+                  project.author_id !== session.user.id &&
+                  project.looking_for_collaborators && (
+                    <CollaborationRequestForm
+                      key={session.user.id}
+                      projectId={project.id}
+                      userId={session.user.id}
+                    />
+                  )}
                 {authorId && accessToken && (
                   <ProjectCollaborationToggle
                     projectId={project.id}

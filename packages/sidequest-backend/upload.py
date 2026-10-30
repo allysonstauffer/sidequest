@@ -4,12 +4,14 @@ import os
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 from uuid import UUID, uuid4
+from typing import Literal
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps, UnidentifiedImageError
 from supabase import ClientOptions, PostgrestAPIError, create_client
+from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).with_name(".env"))
 
@@ -74,6 +76,57 @@ def authenticated_client(authorization: str | None):
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in again.")
     return supabase, user
+
+
+class CollaborationRequestBody(BaseModel):
+    message: str = Field(min_length=1, max_length=1000)
+
+
+class CollaborationResponseBody(BaseModel):
+    status: Literal["accepted", "declined"]
+
+
+def collaboration_rpc(authorization, function, params):
+    client, _user = authenticated_client(authorization)
+    try:
+        result = client.rpc(function, params).execute()
+    except PostgrestAPIError as exc:
+        if exc.code == "42501":
+            raise HTTPException(403, "You do not have permission for this collaboration request.") from exc
+        if exc.code == "22023":
+            raise HTTPException(400, exc.message) from exc
+        logging.exception("Could not save collaboration request")
+        raise HTTPException(502, "Could not save the request. Please try again.") from exc
+    except Exception as exc:
+        logging.exception("Collaboration service unavailable")
+        raise HTTPException(502, "Could not reach the collaboration service. Please try again.") from exc
+    if not isinstance(result.data, dict) or not result.data.get("id"):
+        raise HTTPException(502, "The server did not confirm the request. Refresh before retrying.")
+    return {"request": result.data}
+
+
+@app.post("/api/projects/{project_id}/collaboration-requests")
+def request_collaboration(
+    project_id: UUID,
+    body: CollaborationRequestBody,
+    authorization: str | None = Header(default=None),
+):
+    if not body.message.strip():
+        raise HTTPException(400, "Write a short message about how you can help.")
+    return collaboration_rpc(authorization, "request_project_collaboration", {
+        "p_project_id": str(project_id), "p_message": body.message.strip(),
+    })
+
+
+@app.post("/api/collaboration-requests/{request_id}/response")
+def respond_to_collaboration(
+    request_id: UUID,
+    body: CollaborationResponseBody,
+    authorization: str | None = Header(default=None),
+):
+    return collaboration_rpc(authorization, "respond_to_collaboration_request", {
+        "p_request_id": str(request_id), "p_status": body.status,
+    })
 
 
 @app.post("/api/upload")
