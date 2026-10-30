@@ -55,6 +55,12 @@ class PostingTests(unittest.TestCase):
         if path == "/auth/v1/user":
             if self.failure == "auth":
                 return httpx.Response(401, json={"message": "Invalid JWT"})
+            if self.failure == "api_key":
+                return httpx.Response(401, json={"message": "Invalid API key"})
+            if self.failure == "auth_unavailable":
+                return httpx.Response(503, json={"message": "Auth unavailable"})
+            if self.failure == "auth_network":
+                raise httpx.ConnectError("Auth connection failed", request=request)
             return httpx.Response(200, json={
                 "id": self.user_id,
                 "aud": "authenticated",
@@ -168,6 +174,24 @@ class PostingTests(unittest.TestCase):
         self.failure = "auth"
         self.assertEqual(self.publish().status_code, 401)
         self.assertEqual(self.writes(), [])
+
+    def test_invalid_server_key_is_not_reported_as_an_expired_session(self):
+        self.failure = "api_key"
+        with self.assertLogs(level="ERROR"):
+            response = self.publish()
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("configured correctly on the server", response.json()["detail"])
+        self.assertEqual(self.writes(), [])
+
+    def test_auth_outage_is_not_reported_as_an_expired_session(self):
+        for failure in ("auth_unavailable", "auth_network"):
+            with self.subTest(failure=failure):
+                self.failure = failure
+                with self.assertLogs(level="ERROR"):
+                    response = self.publish()
+                self.assertEqual(response.status_code, 503)
+                self.assertIn("try again shortly", response.json()["detail"])
+                self.assertEqual(self.writes(), [])
 
     def test_missing_configuration_has_actionable_error(self):
         os.environ.pop("SUPABASE_KEY")

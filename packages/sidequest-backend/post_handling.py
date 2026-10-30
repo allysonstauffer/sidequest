@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, File, Form, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps, UnidentifiedImageError
-from supabase import ClientOptions, PostgrestAPIError, create_client
+from supabase import AuthApiError, ClientOptions, PostgrestAPIError, create_client
 from pydantic import BaseModel, Field
 
 load_dotenv(Path(__file__).with_name(".env"))
@@ -69,9 +69,27 @@ def authenticated_client(authorization: str | None):
     try:
         response = supabase.auth.get_user(token)
         user = response.user if response else None
-    except Exception as exc:
+    except AuthApiError as exc:
+        if exc.message.strip().lower() == "invalid api key":
+            logging.error("Supabase rejected the server API key")
+            raise HTTPException(
+                status_code=503,
+                detail="Posting is not configured correctly on the server. Please contact support.",
+            ) from exc
+        if exc.status in (401, 403):
+            raise HTTPException(
+                status_code=401, detail="Your session expired. Please sign in again."
+            ) from exc
+        logging.error("Supabase authentication service could not verify the session")
         raise HTTPException(
-            status_code=401, detail="Your session expired. Please sign in again."
+            status_code=503,
+            detail="Could not verify your sign-in right now. Please try again shortly.",
+        ) from exc
+    except Exception as exc:
+        logging.error("Could not reach or read the Supabase authentication service")
+        raise HTTPException(
+            status_code=503,
+            detail="Could not verify your sign-in right now. Please try again shortly.",
         ) from exc
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in again.")
