@@ -31,7 +31,6 @@ import { compressImage } from "./components/compression";
 import { publishProject } from "./lib/projectApi";
 import { supabase } from "./lib/supabase";
 
-
 const imgActiveMarker =
   "https://www.figma.com/api/mcp/asset/bb150a0e-c82a-43ef-aba3-d0cf68c53b30.svg";
 const imgIcon3 =
@@ -413,6 +412,15 @@ function SharePage() {
               disabled={isUploading}
               required
             />
+          </label>
+          <label className="collaboration-option">
+            <input
+              type="checkbox"
+              name="looking_for_collaborators"
+              value="true"
+              disabled={isUploading}
+            />
+            <span>I’m looking for help or collaborators</span>
           </label>
           <div className="submit-row">
             <button

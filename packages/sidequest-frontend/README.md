@@ -234,6 +234,39 @@ Run the frontend tests with Node 24, which provides built-in
 TypeScript support. Backend tests use an isolated HTTP transport
 with synthetic users and keys.
 
+### Project collaboration flags
+
+Apply
+[`202610290002_project_collaboration.sql`](../../supabase/migrations/202610290002_project_collaboration.sql)
+before running this frontend/backend version. It adds
+`projects.looking_for_collaborators` with a default of false and
+creates the authenticated-only `set_project_collaboration` RPC.
+It preserves existing RLS policies and read permissions. The RPC
+runs with its creator's privileges, explicitly checks the caller
+with `auth.uid()`, and updates only a project owned by that
+user. It changes only the flag and returns the saved Boolean.
+
+The posting checkbox is included in the existing `FormData`.
+FastAPI parses it as a Boolean, defaults omitted checkboxes to
+false, and includes the flag in the project insert. No extra
+frontend state is needed for this checkbox.
+
+`ProjectFeed` fetches the flag, shows a badge and an expandable
+details panel, and exposes the toggle on the owner's profile
+posts. `ProjectCollaborationToggle` calls the small
+`saveProjectCollaboration` helper and updates the card only
+after the RPC confirms the value. A failed save keeps the prior
+status and displays an error. The public feed checkbox filters
+in the database before ordering and limiting results to 20.
+Public feeds remain subject to the existing read policies;
+flagging a project does not change who can see it.
+
+Verify by creating flagged and unflagged posts, refreshing to
+confirm persistence, changing the flag from the owner's profile,
+and filtering the feed. A second account must not be able to
+change the first account's flag through the RPC. The current
+details view expands within each project card.
+
 ### Login and signup workflow
 
 `LoginPage` renders the forms and passes an `AuthService` to

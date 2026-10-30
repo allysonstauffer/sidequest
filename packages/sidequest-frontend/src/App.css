@@ -924,12 +924,14 @@
   min-height: 120px;
 }
 
-.app-shell .field-group input[type='file'] {
+.app-shell .field-group input[type="file"] {
   padding: 9px;
   cursor: pointer;
 }
 
-.app-shell .field-group input[type='file']::file-selector-button {
+.app-shell
+  .field-group
+  input[type="file"]::file-selector-button {
   margin-right: 12px;
   padding: 8px 12px;
   border: 0;
@@ -992,7 +994,7 @@
   }
 
   .app-shell .sidebar,
-.app-shell .rail {
+  .app-shell .rail {
     flex-basis: auto;
     width: 100%;
     border: none;
@@ -1005,4 +1007,16 @@
   .app-shell .page-shell {
     padding: 24px 20px 40px;
   }
+}
+.app-shell .collaboration-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.app-shell .collaboration-option input {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  accent-color: #b18fcf;
 }

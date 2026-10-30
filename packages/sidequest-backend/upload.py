@@ -81,6 +81,7 @@ def upload(
     attachment: UploadFile = File(...),
     title: str = Form(...),
     description: str = Form(""),
+    looking_for_collaborators: bool = Form(False),
     authorization: str | None = Header(default=None),
 ):
     title = title.strip()
@@ -150,6 +151,7 @@ def upload(
                     "title": title,
                     "description": description or None,
                     "media_urls": [public_url],
+                    "looking_for_collaborators": looking_for_collaborators,
                 }
             )
             .execute()

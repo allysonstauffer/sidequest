@@ -98,11 +98,14 @@ class PostingTests(unittest.TestCase):
                 return httpx.Response(200, json=[{"id": self.project_id}])
         self.fail(f"Unexpected request: {request.method} {path}")
 
-    def publish(self, image=None, headers=None):
+    def publish(self, image=None, headers=None, collaboration=None):
+        data = {"title": "  A synthetic side quest  ", "description": "Review only"}
+        if collaboration is not None:
+            data["looking_for_collaborators"] = collaboration
         return self.client.post(
             "/api/upload",
             headers=headers if headers is not None else {"Authorization": f"Bearer {self.token}"},
-            data={"title": "  A synthetic side quest  ", "description": "Review only"},
+            data=data,
             files={"attachment": ("review.png", self.image if image is None else image, "image/png")},
         )
 
@@ -121,6 +124,27 @@ class PostingTests(unittest.TestCase):
     def test_existing_secret_key_variable_still_works(self):
         os.environ["SUPABASE_SECRET_KEY"] = os.environ.pop("SUPABASE_KEY")
         self.assertEqual(self.publish().status_code, 200)
+
+    def test_missing_collaboration_checkbox_defaults_to_false(self):
+        response = self.publish()
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["project"]["looking_for_collaborators"], False)
+
+    def test_checked_collaboration_checkbox_is_saved_as_boolean_true(self):
+        response = self.publish(collaboration="true")
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["project"]["looking_for_collaborators"], True)
+
+    def test_explicit_false_collaboration_flag_is_saved_as_false(self):
+        response = self.publish(collaboration="false")
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["project"]["looking_for_collaborators"], False)
+
+    def test_invalid_collaboration_flag_cannot_upload(self):
+        response = self.publish(collaboration="maybe")
+        self.assertEqual(response.status_code, 422)
+        self.factory.assert_not_called()
+        self.assertEqual(self.requests, [])
 
     def test_privileged_key_does_not_replace_user_auth(self):
         self.key = "sb_secret_synthetic-test-key"

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 import { deleteProject as deleteProjectRequest } from "../lib/projectApi";
+import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
 import "./ProjectFeed.css";
 
 type Project = {
@@ -9,6 +10,7 @@ type Project = {
   description: string | null;
   media_urls: string[] | null;
   created_at: string;
+  looking_for_collaborators: boolean;
 };
 
 type ProjectFeedProps = {
@@ -28,22 +30,33 @@ export default function ProjectFeed({
     null
   );
   const [deleteNotice, setDeleteNotice] = useState("");
+  const [collaboratorsOnly, setCollaboratorsOnly] =
+    useState(false);
 
   const PUBLIC_FEED_LIMIT = 20;
-  
+
   useEffect(() => {
     let active = true;
 
     async function loadProjects() {
       try {
-        let query = supabase
-          .from("projects")
-          .select("id,title,description,media_urls,created_at");
+        let query = supabase.from("projects").select(`
+            id,
+            title,
+            description,
+            media_urls,
+            created_at,
+            looking_for_collaborators
+          `);
         if (authorId) query = query.eq("author_id", authorId);
-        query = query.order("created_at", { ascending: false })
+        // Filter on the server before limiting the public feed to 20 results.
+        if (!authorId && collaboratorsOnly) {
+          query = query.eq("looking_for_collaborators", true);
+        }
+        query = query.order("created_at", { ascending: false });
         const { data, error } = await (authorId
-        ? query
-        : query.limit(PUBLIC_FEED_LIMIT));
+          ? query
+          : query.limit(PUBLIC_FEED_LIMIT));
 
         if (!active) return;
         if (error) {
@@ -61,7 +74,7 @@ export default function ProjectFeed({
     return () => {
       active = false;
     };
-  }, [authorId]);
+  }, [authorId, collaboratorsOnly]);
 
   async function deleteProject(project: Project) {
     if (!accessToken || !authorId || deletingId) return;
@@ -115,6 +128,19 @@ export default function ProjectFeed({
       <h2 id="project-feed-title">
         {authorId ? "Your posts" : "Latest projects"}
       </h2>
+      {!authorId && (
+        <label className="collaboration-option">
+          <input
+            type="checkbox"
+            checked={collaboratorsOnly}
+            onChange={(event) => {
+              setStatus("loading");
+              setCollaboratorsOnly(event.target.checked);
+            }}
+          />
+          <span>Looking for collaborators only</span>
+        </label>
+      )}
       {status === "loading" && <p>Loading projects…</p>}
       {status === "error" && (
         <p role="alert">
@@ -122,7 +148,13 @@ export default function ProjectFeed({
         </p>
       )}
       {status === "ready" && projects.length === 0 && (
-        <p>{authorId ? "share some posts" : "no posts yet"}</p>
+        <p>
+          {authorId
+            ? "You haven’t shared any projects yet."
+            : collaboratorsOnly
+              ? "No projects are looking for collaborators yet."
+              : "No projects yet."}
+        </p>
       )}
       {deleteNotice && <p role="alert">{deleteNotice}</p>}
       {status === "ready" && projects.length > 0 && (
@@ -140,14 +172,49 @@ export default function ProjectFeed({
               )}
               <div className="project-feed-copy">
                 <h3>{project.title}</h3>
-                {project.description && (
-                  <p>{project.description}</p>
+                {project.looking_for_collaborators && (
+                  <span className="project-collaboration-badge">
+                    Looking for collaborators
+                  </span>
                 )}
+                <details className="project-details">
+                  <summary>Project details</summary>
+                  <p>
+                    {project.description ||
+                      "No description provided."}
+                  </p>
+                  <p>
+                    Collaboration status:{" "}
+                    {project.looking_for_collaborators
+                      ? "Looking for help or collaborators"
+                      : "Not currently looking"}
+                  </p>
+                </details>
                 <time dateTime={project.created_at}>
                   {new Date(
                     project.created_at
                   ).toLocaleDateString()}
                 </time>
+                {authorId && accessToken && (
+                  <ProjectCollaborationToggle
+                    projectId={project.id}
+                    active={project.looking_for_collaborators}
+                    disabled={deletingId !== null}
+                    onChange={(active) => {
+                      setProjects((current) =>
+                        current.map((item) =>
+                          item.id === project.id
+                            ? {
+                                ...item,
+                                looking_for_collaborators:
+                                  active
+                              }
+                            : item
+                        )
+                      );
+                    }}
+                  />
+                )}
                 {authorId && accessToken && (
                   <button
                     className="project-delete-button"
