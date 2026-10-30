@@ -37,7 +37,7 @@ function DashboardLayout({
         <div className="brand-block">
           <Link
             className="brand-logo"
-            to="/feed"
+            to="/"
             aria-label="Go to your feed">
             <img
               src="/branding/sidequest-wordmark-dark.png"
