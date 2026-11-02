@@ -55,6 +55,12 @@ class PostingTests(unittest.TestCase):
         if path == "/auth/v1/user":
             if self.failure == "auth":
                 return httpx.Response(401, json={"message": "Invalid JWT"})
+            if self.failure == "api_key":
+                return httpx.Response(401, json={"message": "Invalid API key"})
+            if self.failure == "auth_unavailable":
+                return httpx.Response(503, json={"message": "Auth unavailable"})
+            if self.failure == "auth_network":
+                raise httpx.ConnectError("Auth connection failed", request=request)
             return httpx.Response(200, json={
                 "id": self.user_id,
                 "aud": "authenticated",
@@ -96,12 +102,19 @@ class PostingTests(unittest.TestCase):
             if request.method == "DELETE":
                 self.assertEqual(request.url.params["author_id"], f"eq.{self.user_id}")
                 return httpx.Response(200, json=[{"id": self.project_id}])
+            if request.method == "PATCH":
+                self.assertEqual(request.url.params["author_id"], f"eq.{self.user_id}")
+                return httpx.Response(200, json=[{
+                    "id": self.project_id, **json.loads(request.content),
+                }])
         self.fail(f"Unexpected request: {request.method} {path}")
 
-    def publish(self, image=None, headers=None, collaboration=None):
+    def publish(self, image=None, headers=None, collaboration=None, fields=None):
         data = {"title": "  A synthetic side quest  ", "description": "Review only"}
         if collaboration is not None:
             data["looking_for_collaborators"] = collaboration
+        if fields:
+            data.update(fields)
         return self.client.post(
             "/api/upload",
             headers=headers if headers is not None else {"Authorization": f"Bearer {self.token}"},
@@ -146,6 +159,35 @@ class PostingTests(unittest.TestCase):
         self.factory.assert_not_called()
         self.assertEqual(self.requests, [])
 
+    def test_beginner_and_experience_fields_are_saved(self):
+        response = self.publish(fields={
+            "beginner_friendly": "true", "skill_level": "Beginner",
+        })
+        self.assertEqual(response.status_code, 200)
+        project = response.json()["project"]
+        self.assertIs(project["beginner_friendly"], True)
+        self.assertEqual(project["skill_level"], "Beginner")
+
+    def test_invalid_experience_cannot_upload(self):
+        response = self.publish(fields={"skill_level": "Master"})
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(self.writes(), [])
+
+    def test_owner_can_edit_beginner_and_experience_fields(self):
+        response = self.client.patch(
+            f"/api/upload?id={self.project_id}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            json={
+                "title": "Updated project",
+                "description": "New details",
+                "beginner_friendly": True,
+                "skill_level": "Intermediate",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIs(response.json()["project"]["beginner_friendly"], True)
+        self.assertEqual(response.json()["project"]["skill_level"], "Intermediate")
+
     def test_privileged_key_does_not_replace_user_auth(self):
         self.key = "sb_secret_synthetic-test-key"
         os.environ["SUPABASE_KEY"] = self.key
@@ -168,6 +210,24 @@ class PostingTests(unittest.TestCase):
         self.failure = "auth"
         self.assertEqual(self.publish().status_code, 401)
         self.assertEqual(self.writes(), [])
+
+    def test_invalid_server_key_is_not_reported_as_an_expired_session(self):
+        self.failure = "api_key"
+        with self.assertLogs(level="ERROR"):
+            response = self.publish()
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("configured correctly on the server", response.json()["detail"])
+        self.assertEqual(self.writes(), [])
+
+    def test_auth_outage_is_not_reported_as_an_expired_session(self):
+        for failure in ("auth_unavailable", "auth_network"):
+            with self.subTest(failure=failure):
+                self.failure = failure
+                with self.assertLogs(level="ERROR"):
+                    response = self.publish()
+                self.assertEqual(response.status_code, 503)
+                self.assertIn("try again shortly", response.json()["detail"])
+                self.assertEqual(self.writes(), [])
 
     def test_missing_configuration_has_actionable_error(self):
         os.environ.pop("SUPABASE_KEY")

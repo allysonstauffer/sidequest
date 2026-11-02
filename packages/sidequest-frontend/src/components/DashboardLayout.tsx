@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { Link, NavLink } from "react-router-dom";
 import LogoutButton from "./LogoutButton";
 import NotificationBell from "../components/NotificationBell";
+import UnreadMessagesBadge from "../messages/UnreadMessagesBadge";
 
 const imgIcon =
   "https://www.figma.com/api/mcp/asset/59706023-6a8b-469b-bcf1-b9943e46edd3.svg";
@@ -16,7 +17,7 @@ const imgTwoPeopleTalking =
 const imgSettings =
   "https://www.figma.com/api/mcp/asset/5991e596-afae-449d-934e-f0307f52abf6.svg";
 const navItems = [
-  { label: "Home", icon: imgIcon, to: "/feed" },
+  { label: "Feed", icon: imgIcon, to: "/feed" },
   { label: "Community", icon: imgSearch, to: "/community" },
   { label: "Search", icon: imgIcon1, to: "/search" },
   {
@@ -37,7 +38,7 @@ function DashboardLayout({
         <div className="brand-block">
           <Link
             className="brand-logo"
-            to="/feed"
+            to="/"
             aria-label="Go to your feed">
             <img
               src="/branding/sidequest-wordmark-dark.png"
@@ -54,9 +55,10 @@ function DashboardLayout({
                 key={label}
                 to={to}
                 className={({ isActive }) =>
-                  `nav-item ${isActive ? "active" : ""}`
+                  `nav-item ${to === "/messages" ? "messages-link" : ""} ${isActive ? "active" : ""}`
                 }>
                 <span>{label}</span>
+                {to === "/messages" && <UnreadMessagesBadge />}
                 {window.location.pathname === to && (
                   <img
                     src={imgActiveMarker}

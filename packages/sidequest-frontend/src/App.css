@@ -914,7 +914,8 @@
 }
 
 .app-shell .field-group input,
-.app-shell .field-group textarea {
+.app-shell .field-group textarea,
+.app-shell .field-group select {
   border-radius: 16px;
   border: 2px solid #c9b2df;
   background: #24232b;

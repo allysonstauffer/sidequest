@@ -7,6 +7,14 @@ migrations. The existing Realtime publication and notification
 recipient policies are reused. Existing follows are not
 backfilled with alerts.
 
+Then apply
+`supabase/migrations/202610300002_notification_usernames.sql`.
+It fixes both follow and like alerts to use the account username
+stored as `display_name` by signup, onboarding, and settings.
+Legacy `profiles.username` values remain a fallback. Existing “A
+hobbyist” placeholders are repaired when a username exists; read
+state and notification links are preserved.
+
 When someone follows you, the notification bell counts the new
 unread alert and the notifications page shows “started following
 you” with a **Follow back** button. Clicking the message marks
@@ -20,10 +28,10 @@ Notifications are created by a database trigger in the same
 transaction as the follow. Repeated follows do not duplicate
 alerts. Unfollowing dismisses the alert through a Realtime
 update; following again creates a fresh unread alert. Names are
-snapshots from the follower's profile. Only the recipient can
-read or mark their notifications as read. Failed follow saves
-retain the last confirmed button state and show an error. Failed
-status loads offer Retry.
+snapshots of the follower's account username. Only the recipient
+can read or mark their notifications as read. Failed follow
+saves retain the last confirmed button state and show an error.
+Failed status loads offer Retry.
 
 Verify with two accounts after applying the migration:
 
