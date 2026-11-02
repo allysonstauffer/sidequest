@@ -327,16 +327,20 @@ function SettingsPage() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={6}
+                minLength={8}
+                pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
                 required
               />
               <label htmlFor="settings-confirm-password">Confirm new password</label>
               <input
                 id="settings-confirm-password"
-                name="confirmPassword"
+                name="newPassword"
                 type="password"
                 autoComplete="new-password"
-                minLength={6}
+                minLength={8}
+                pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
                 required
               />
               <button type="submit" disabled={busy !== null}>

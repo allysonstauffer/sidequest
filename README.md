@@ -179,23 +179,31 @@ authorization.
 
 ### 4. Start the app
 
-Run the frontend and backend in separate terminals from the
-repository root. Keep the Python virtual environment active in
-the backend terminal.
+Use the cross-platform launcher to start both servers in one
+terminal. It prompts you to choose local-only or network access;
+you can also provide the mode directly:
 
 ```sh
-# Terminal 1: Vite frontend
-npm run dev --workspace=sidequest-frontend
+# macOS / Linux
+sh scripts/run_all.sh local
+sh scripts/run_all.sh network
 ```
 
-```sh
-# Terminal 2: FastAPI backend
-npm run dev
+```powershell
+# Windows PowerShell
+.\scripts\run_all.ps1 local
+.\scripts\run_all.ps1 network
 ```
 
-Open [http://localhost:5173](http://localhost:5173). The backend
-listens on port 8000, and Vite forwards `/api` requests to it.
-Supabase-backed features also require the database setup above.
+Omit the mode argument to choose from the interactive menu. In
+network mode, open `http://<computer-LAN-IP>:5173` from another
+device on the same network. The backend listens on port 8000, and
+Vite forwards `/api` requests to it. The launcher checks
+`.venv`, creates it if needed, and installs the backend
+requirements when imports are missing. Stop both servers with
+Ctrl+C. Network mode exposes the development servers to your
+local network; use it only on a trusted network. Supabase-backed
+features also require the database setup above.
 
 ## Useful commands
 
