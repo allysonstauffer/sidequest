@@ -64,6 +64,7 @@ function mapProjectContent(
     typeof project.title !== "string" ||
     (project.description !== null &&
       typeof project.description !== "string") ||
+    typeof project.beginner_friendly !== "boolean" ||
     (mediaUrls !== null &&
       (!Array.isArray(mediaUrls) ||
         !mediaUrls.every((url) => typeof url === "string")))
@@ -76,6 +77,7 @@ function mapProjectContent(
     title: project.title,
     description: project.description ?? "",
     kind: "Project",
+    beginnerFriendly: project.beginner_friendly,
     imageUrl: Array.isArray(mediaUrls)
       ? mediaUrls[0]
       : undefined
@@ -171,6 +173,11 @@ function DiscoveryContentCard({
         </div>
         <h4>{item.title}</h4>
         <p>{item.description}</p>
+        {item.beginnerFriendly ? (
+          <span className="beginner-tag">Beginner-Friendly</span>
+        ) : (
+          <span className="experience-tag">Experience Recommended</span>
+        )}
       </div>
     </article>
   );
@@ -179,6 +186,8 @@ function DiscoveryContentCard({
 export function CommunityDiscovery() {
   const { session } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
+  const [beginnerFriendlyOnly, setBeginnerFriendlyOnly] =
+    useState(false);
   const [communities, setCommunities] = useState<
     CommunityRecord[]
   >([]);
@@ -344,9 +353,14 @@ export function CommunityDiscovery() {
     async function loadContent() {
       setContentStatus("loading");
       try {
-        const query = supabase
+        let query = supabase
           .from("projects")
-          .select("id,title,description,media_urls,created_at");
+          .select(
+            "id,title,description,media_urls,beginner_friendly,created_at"
+          );
+        if (beginnerFriendlyOnly) {
+          query = query.eq("beginner_friendly", true);
+        }
         const { data, error } = await query
           .order("created_at", { ascending: false })
           .limit(20);
@@ -369,7 +383,7 @@ export function CommunityDiscovery() {
     return () => {
       active = false;
     };
-  }, [reloadContent]);
+  }, [beginnerFriendlyOnly, reloadContent]);
 
   return (
     <div className="community-discovery">
@@ -534,10 +548,32 @@ export function CommunityDiscovery() {
             </p>
             <h3 id="content-filter-heading">Latest projects</h3>
           </div>
+          <label className="beginner-filter-control">
+            <input
+              type="checkbox"
+              checked={beginnerFriendlyOnly}
+              onChange={(event) =>
+                setBeginnerFriendlyOnly(event.target.checked)
+              }
+            />
+            <span>Beginner-Friendly only</span>
+          </label>
         </div>
 
         <div className="content-filter-toolbar">
-          <p>Completed projects shared by the community.</p>
+          <p>
+            {beginnerFriendlyOnly
+              ? "Showing beginner-friendly projects."
+              : "Completed projects shared by the community."}
+          </p>
+          {beginnerFriendlyOnly ? (
+            <button
+              className="text-reset-button"
+              type="button"
+              onClick={() => setBeginnerFriendlyOnly(false)}>
+              Reset filter
+            </button>
+          ) : null}
         </div>
 
         {contentStatus === "loading" ? (
@@ -567,10 +603,24 @@ export function CommunityDiscovery() {
           <div
             className="discovery-empty-state content-empty-state"
             role="status">
-            <h4>No projects yet.</h4>
+            <h4>
+              {beginnerFriendlyOnly
+                ? "No beginner-friendly projects yet."
+                : "No projects yet."}
+            </h4>
             <p>
-              Check back later to discover community projects.
+              {beginnerFriendlyOnly
+                ? "Turn off the filter to see all projects."
+                : "Check back later to discover community projects."}
             </p>
+            {beginnerFriendlyOnly ? (
+              <button
+                className="text-reset-button"
+                type="button"
+                onClick={() => setBeginnerFriendlyOnly(false)}>
+                Show all projects
+              </button>
+            ) : null}
           </div>
         )}
       </section>

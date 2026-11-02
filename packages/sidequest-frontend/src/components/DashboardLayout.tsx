@@ -17,7 +17,7 @@ const imgTwoPeopleTalking =
 const imgSettings =
   "https://www.figma.com/api/mcp/asset/5991e596-afae-449d-934e-f0307f52abf6.svg";
 const navItems = [
-  { label: "Home", icon: imgIcon, to: "/feed" },
+  { label: "Feed", icon: imgIcon, to: "/feed" },
   { label: "Community", icon: imgSearch, to: "/community" },
   { label: "Search", icon: imgIcon1, to: "/search" },
   {
@@ -38,7 +38,7 @@ function DashboardLayout({
         <div className="brand-block">
           <Link
             className="brand-logo"
-            to="/feed"
+            to="/"
             aria-label="Go to your feed">
             <img
               src="/branding/sidequest-wordmark-dark.png"

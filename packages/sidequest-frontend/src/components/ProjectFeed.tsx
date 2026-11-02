@@ -11,6 +11,7 @@ import { useAuth } from "../auth/useAuth";
 import LikeButton from "./LikeButton";
 import { isLikeSummary, type LikeSummary } from "../lib/likesApi";
 import { loadFollowedAuthorIds } from "../utils/followedProjectAuthors";
+import { SKILL_LEVELS, type SkillLevel } from "../preferences/model";
 import "./ProjectFeed.css";
 
 type Project = {
@@ -21,6 +22,8 @@ type Project = {
   media_urls: string[] | null;
   created_at: string;
   looking_for_collaborators: boolean;
+  beginner_friendly: boolean;
+  skill_level: SkillLevel | null;
 };
 
 type ProjectFeedProps = {
@@ -41,6 +44,9 @@ function parseProject(value: unknown): Project | null {
     typeof project.title !== "string" ||
     typeof project.created_at !== "string" ||
     typeof project.looking_for_collaborators !== "boolean" ||
+    typeof project.beginner_friendly !== "boolean" ||
+    (project.skill_level !== null &&
+      !SKILL_LEVELS.some((level) => level === project.skill_level)) ||
     (project.description !== null &&
       typeof project.description !== "string") ||
     (project.media_urls !== null &&
@@ -64,7 +70,9 @@ function parseProject(value: unknown): Project | null {
       ? project.media_urls
       : null,
     created_at: project.created_at,
-    looking_for_collaborators: project.looking_for_collaborators
+    looking_for_collaborators: project.looking_for_collaborators,
+    beginner_friendly: project.beginner_friendly as boolean,
+    skill_level: project.skill_level as SkillLevel | null
   };
 }
 
@@ -92,6 +100,8 @@ function ProjectFeedContent({
   const [likesError, setLikesError] = useState("");
   const [likesRetry, setLikesRetry] = useState(0);
   const [collaboratorsOnly, setCollaboratorsOnly] = useState(false);
+  const [beginnerOnly, setBeginnerOnly] = useState(false);
+  const [skillFilter, setSkillFilter] = useState<SkillLevel | "">("");
   const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
@@ -108,6 +118,8 @@ function ProjectFeedContent({
   );
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
+  const [editBeginnerFriendly, setEditBeginnerFriendly] = useState(false);
+  const [editSkillLevel, setEditSkillLevel] = useState<SkillLevel | "">("");
   const [actionNotice, setActionNotice] = useState("");
 
   useEffect(() => {
@@ -141,7 +153,7 @@ function ProjectFeedContent({
         let query = supabase
           .from("projects")
           .select(
-            "id,author_id,title,description,media_urls,created_at,looking_for_collaborators"
+            "id,author_id,title,description,media_urls,created_at,looking_for_collaborators,beginner_friendly,skill_level"
           )
           .order("created_at", { ascending: false });
         if (authorId) query = query.eq("author_id", authorId);
@@ -151,6 +163,12 @@ function ProjectFeedContent({
         }
         if (!authorId && !projectId && collaboratorsOnly) {
           query = query.eq("looking_for_collaborators", true);
+        }
+        if (!authorId && !projectId && beginnerOnly) {
+          query = query.eq("beginner_friendly", true);
+        }
+        if (!authorId && !projectId && skillFilter) {
+          query = query.eq("skill_level", skillFilter);
         }
         if (!authorId && !followedById && !projectId) query = query.limit(20);
         const { data, error } = await query;
@@ -211,13 +229,15 @@ function ProjectFeedContent({
     return () => {
       active = false;
     };
-  }, [authorId, followedById, projectId, collaboratorsOnly, userId, likesRetry]);
+  }, [authorId, followedById, projectId, collaboratorsOnly, beginnerOnly, skillFilter, userId, likesRetry]);
 
   function startEditing(project: Project) {
     setOpenMenuId(null);
     setEditingId(project.id);
     setEditTitle(project.title);
     setEditDescription(project.description ?? "");
+    setEditBeginnerFriendly(project.beginner_friendly);
+    setEditSkillLevel(project.skill_level ?? "");
     setActionNotice("");
   }
 
@@ -225,6 +245,8 @@ function ProjectFeedContent({
     setEditingId(null);
     setEditTitle("");
     setEditDescription("");
+    setEditBeginnerFriendly(false);
+    setEditSkillLevel("");
   }
 
   async function saveProject(
@@ -244,7 +266,9 @@ function ProjectFeedContent({
     try {
       await updateProjectRequest(editingId, accessToken, {
         title,
-        description: editDescription.trim() || null
+        description: editDescription.trim() || null,
+        beginner_friendly: editBeginnerFriendly,
+        skill_level: editSkillLevel || null
       });
 
       setProjects((current) =>
@@ -253,7 +277,9 @@ function ProjectFeedContent({
             ? {
                 ...project,
                 title,
-                description: editDescription.trim() || null
+                description: editDescription.trim() || null,
+                beginner_friendly: editBeginnerFriendly,
+                skill_level: editSkillLevel || null
               }
             : project
         )
@@ -316,14 +342,35 @@ function ProjectFeedContent({
         {title ?? (projectId ? "Project" : authorId ? "Your posts" : "Latest projects")}
       </h2>
       {!authorId && !projectId && (
-        <label className="collaboration-option">
-          <input
-            type="checkbox"
-            checked={collaboratorsOnly}
-            onChange={(event) => setCollaboratorsOnly(event.target.checked)}
-          />
-          <span>Looking for collaborators only</span>
-        </label>
+        <div className="project-feed-filters" aria-label="Filter projects">
+          <label className="collaboration-option">
+            <input
+              type="checkbox"
+              checked={beginnerOnly}
+              onChange={(event) => setBeginnerOnly(event.target.checked)}
+            />
+            <span>Beginner-friendly only</span>
+          </label>
+          <label className="project-skill-filter">
+            <span>Experience required</span>
+            <select
+              value={skillFilter}
+              onChange={(event) => setSkillFilter(event.target.value as SkillLevel | "")}>
+              <option value="">Any experience</option>
+              {SKILL_LEVELS.map((level) => (
+                <option key={level} value={level}>{level}</option>
+              ))}
+            </select>
+          </label>
+          <label className="collaboration-option">
+            <input
+              type="checkbox"
+              checked={collaboratorsOnly}
+              onChange={(event) => setCollaboratorsOnly(event.target.checked)}
+            />
+            <span>Looking for collaborators only</span>
+          </label>
+        </div>
       )}
       {status === "loading" && <p>Loading projects…</p>}
       {status === "error" && (
@@ -336,12 +383,12 @@ function ProjectFeedContent({
         <p>
           {projectId
             ? "This project is unavailable or has been deleted."
+            : beginnerOnly || skillFilter || collaboratorsOnly
+              ? "No projects match these filters."
             : followedById
               ? "No projects from people you follow yet."
               : authorId
                 ? "You haven’t shared any projects yet."
-                : collaboratorsOnly
-                  ? "No projects are looking for collaborators yet."
                   : "No projects yet."}
         </p>
       )}
@@ -438,6 +485,14 @@ function ProjectFeedContent({
                     Looking for collaborators
                   </span>
                 )}
+                {project.beginner_friendly && (
+                  <span className="project-beginner-badge">Beginner-friendly</span>
+                )}
+                {project.skill_level && (
+                  <span className="project-skill-badge">
+                    Experience required: {project.skill_level}
+                  </span>
+                )}
                 <details className="project-details">
                   <summary>Project details</summary>
                   <p>{project.description || "No description provided."}</p>
@@ -503,6 +558,25 @@ function ProjectFeedContent({
                           setEditDescription(event.target.value)
                         }
                       />
+                    </label>
+                    <label>
+                      <span>Experience required</span>
+                      <select
+                        value={editSkillLevel}
+                        onChange={(event) => setEditSkillLevel(event.target.value as SkillLevel | "")}>
+                        <option value="">No specific experience</option>
+                        {SKILL_LEVELS.map((level) => (
+                          <option key={level} value={level}>{level}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <label className="project-edit-checkbox">
+                      <input
+                        type="checkbox"
+                        checked={editBeginnerFriendly}
+                        onChange={(event) => setEditBeginnerFriendly(event.target.checked)}
+                      />
+                      <span>Beginner-friendly project</span>
                     </label>
                     <div className="project-edit-actions">
                       <button
