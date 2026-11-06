@@ -62,8 +62,11 @@ export default function ResetPasswordPage() {
                 name="password"
                 type="password"
                 autoComplete="new-password"
-                minLength={6}
+                minLength={8}
+                pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
                 required
+              
               />
             </label>
             <label>
@@ -72,7 +75,9 @@ export default function ResetPasswordPage() {
                 name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
-                minLength={6}
+                minLength={8}
+                pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+                title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
                 required
               />
             </label>

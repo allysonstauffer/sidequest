@@ -335,7 +335,7 @@ function SettingsPage() {
               <label htmlFor="settings-confirm-password">Confirm new password</label>
               <input
                 id="settings-confirm-password"
-                name="newPassword"
+                name="confirmPassword"
                 type="password"
                 autoComplete="new-password"
                 minLength={8}
