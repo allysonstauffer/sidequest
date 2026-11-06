@@ -19,6 +19,8 @@ The access token does not last forever, but its expiration does
 not automatically sign the user out. Currently, no overall
 session time limit or inactivity timeout is configured.
 
+See packages/sidequest-frontend/src/auth/supabaseAuthService.ts for the actual sign-in/sign-up implementation, but all is routed through Supabase's sign-up/in function.
+
 ## Sign-in Sequence Diagram
 
 <img width="2488" height="1110" alt="signup" src="https://github.com/user-attachments/assets/f1fd51cb-a549-46a6-81ae-360178c4acb0" />
