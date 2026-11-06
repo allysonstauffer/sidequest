@@ -18,19 +18,3 @@ sessions.
 The access token does not last forever, but its expiration does
 not automatically sign the user out. Currently, no overall
 session time limit or inactivity timeout is configured.
-
-## Authentication sequence
-
-```mermaid
-sequenceDiagram
-    actor User
-    participant App as SideQuest
-    participant Auth as Supabase Auth
-
-    User->>App: Sign in
-    App->>Auth: Send credentials
-    Auth-->>App: Return access and refresh tokens
-    App->>App: Persist session in browser
-    App->>Auth: Refresh access token when needed
-    Auth-->>App: Return new tokens
-```
