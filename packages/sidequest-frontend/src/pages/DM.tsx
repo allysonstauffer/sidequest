@@ -14,12 +14,14 @@ import { ImagePlus, X } from "lucide-react";
 import { compressImage } from "../components/compression";
 import {
   MESSAGE_FIELDS,
+  mergeMessages,
   parseChatMessage,
   sendChatMessage,
+  unsendChatMessage,
   validateMessageImage,
   type ChatMessage
 } from "../messages/chatMessages";
-import MessageImage from "../messages/MessageImage";
+import ChatMessageBubble from "../messages/ChatMessageBubble";
 import "./DM.css";
 
 type Contact = { id: string; username: string };
@@ -52,18 +54,6 @@ function roomLabel(
         .map((id) => memberLabel(id, contacts))
         .join(", ")
     : "Chat";
-}
-
-function mergeMessages(...groups: Message[][]): Message[] {
-  const byId = new Map<string, Message>();
-  for (const group of groups) {
-    for (const message of group) byId.set(message.id, message);
-  }
-  return [...byId.values()].sort(
-    (a, b) =>
-      a.created_at.localeCompare(b.created_at) ||
-      a.id.localeCompare(b.id)
-  );
 }
 
 export default function DM() {
@@ -309,6 +299,43 @@ export default function DM() {
       }
     }
     void loadMessages();
+    const channel = supabase
+      .channel(`chat-messages:${activeRoomId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `room_id=eq.${activeRoomId}`
+        },
+        (payload) => {
+          if (!active) return;
+          try {
+            const message = parseChatMessage(payload.new);
+            if (message.room_id !== String(activeRoomId))
+              return;
+            setMessageState((current) => ({
+              roomId: activeRoomId,
+              messages: mergeMessages(
+                current.roomId === activeRoomId
+                  ? current.messages
+                  : [],
+                [message]
+              ),
+              loaded:
+                current.roomId === activeRoomId &&
+                current.loaded
+            }));
+          } catch {
+            void loadMessages();
+          }
+        }
+      )
+      .subscribe((status) => {
+        if (active && status === "SUBSCRIBED")
+          void loadMessages();
+      });
     const timer = window.setInterval(
       () => void loadMessages(),
       5000
@@ -325,6 +352,7 @@ export default function DM() {
         "visibilitychange",
         onVisible
       );
+      void supabase.removeChannel(channel);
     };
   }, [activeRoomId, revision]);
 
@@ -447,6 +475,24 @@ export default function DM() {
       sendingRef.current = false;
       setSending(false);
     }
+  }
+
+  async function unsendMessage(message: Message) {
+    if (!userId) throw new Error("Please sign in again.");
+    const saved = await unsendChatMessage(
+      supabase,
+      message,
+      userId
+    );
+    setMessageState((current) =>
+      String(current.roomId) === saved.room_id
+        ? {
+            ...current,
+            messages: mergeMessages(current.messages, [saved])
+          }
+        : current
+    );
+    refreshUnread();
   }
 
   const activeRoom = rooms.find(
@@ -641,42 +687,16 @@ export default function DM() {
                   <p>No messages yet. Say hello!</p>
                 )}
               {messages.map((message) => (
-                <p
-                  className={
-                    message.sender_id === userId
-                      ? "dm-message dm-message--own"
-                      : "dm-message"
-                  }
-                  key={message.id}>
-                  <strong>
-                    {message.sender_id === userId
-                      ? "You"
-                      : memberLabel(
-                          message.sender_id,
-                          knownContacts
-                        )}
-                  </strong>
-                  {message.image_path && (
-                    <MessageImage
-                      key={message.image_path}
-                      path={message.image_path}
-                      sender={
-                        message.sender_id === userId
-                          ? "you"
-                          : memberLabel(
-                              message.sender_id,
-                              knownContacts
-                            )
-                      }
-                    />
+                <ChatMessageBubble
+                  key={message.id}
+                  message={message}
+                  userId={userId ?? ""}
+                  senderName={memberLabel(
+                    message.sender_id,
+                    knownContacts
                   )}
-                  <span>{message.text}</span>
-                  <time dateTime={message.created_at}>
-                    {new Date(
-                      message.created_at
-                    ).toLocaleString()}
-                  </time>
-                </p>
+                  onUnsend={unsendMessage}
+                />
               ))}
             </div>
             {pendingImage && (

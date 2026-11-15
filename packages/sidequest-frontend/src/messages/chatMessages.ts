@@ -1,7 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export const MESSAGE_FIELDS =
-  "id, room_id, sender_id, text, image_path, created_at";
+  "id, room_id, sender_id, text, image_path, created_at, unsent_at";
+export const UNSEND_WINDOW_MS = 2 * 60 * 1000;
 export const MESSAGE_IMAGE_BUCKET = "dm-images";
 export const MAX_MESSAGE_IMAGE_BYTES = 10 * 1024 * 1024;
 const extensions: Record<string, string> = {
@@ -17,6 +18,7 @@ export type ChatMessage = {
   text: string;
   image_path: string | null;
   created_at: string;
+  unsent_at: string | null;
 };
 
 export function validateMessageImage(
@@ -42,6 +44,10 @@ export function parseChatMessage(value: unknown): ChatMessage {
     typeof row.sender_id !== "string" ||
     typeof row.text !== "string" ||
     typeof row.created_at !== "string" ||
+    (row.unsent_at !== null &&
+      row.unsent_at !== undefined &&
+      (typeof row.unsent_at !== "string" ||
+        !Number.isFinite(Date.parse(row.unsent_at)))) ||
     (row.image_path !== null &&
       typeof row.image_path !== "string")
   ) {
@@ -53,10 +59,82 @@ export function parseChatMessage(value: unknown): ChatMessage {
     id: String(row.id),
     room_id: String(row.room_id),
     sender_id: row.sender_id,
-    text: row.text,
-    image_path: row.image_path,
-    created_at: row.created_at
+    text: row.unsent_at ? "Message unsent" : row.text,
+    image_path: row.unsent_at ? null : row.image_path,
+    created_at: row.created_at,
+    unsent_at: (row.unsent_at as string | null) ?? null
   };
+}
+
+export function canUnsendMessage(
+  message: ChatMessage,
+  userId: string,
+  now = Date.now()
+): boolean {
+  const age = now - Date.parse(message.created_at);
+  return (
+    message.sender_id === userId &&
+    !message.unsent_at &&
+    age >= 0 &&
+    age < UNSEND_WINDOW_MS
+  );
+}
+
+export function mergeMessages(
+  ...groups: ChatMessage[][]
+): ChatMessage[] {
+  const byId = new Map<string, ChatMessage>();
+  for (const group of groups) {
+    for (const message of group) {
+      // A stale poll or send response must never resurrect unsent content.
+      if (!byId.get(message.id)?.unsent_at)
+        byId.set(message.id, message);
+    }
+  }
+  return [...byId.values()].sort(
+    (a, b) =>
+      a.created_at.localeCompare(b.created_at) ||
+      a.id.localeCompare(b.id)
+  );
+}
+
+export async function unsendChatMessage(
+  client: Pick<SupabaseClient, "auth" | "rpc" | "storage">,
+  message: ChatMessage,
+  userId: string
+): Promise<ChatMessage> {
+  const { data: auth, error: authError } =
+    await client.auth.getSession();
+  if (authError || auth.session?.user.id !== userId)
+    throw new Error("Please sign in again before unsending.");
+  const { data, error } = await client.rpc("unsend_message", {
+    p_message_id: message.id
+  });
+  if (error)
+    throw new Error(
+      error.code === "22023" || error.code === "42501"
+        ? error.message
+        : "Could not unsend your message. Check the chat, then try again."
+    );
+  const saved = parseChatMessage(data);
+  if (
+    saved.id !== message.id ||
+    saved.room_id !== message.room_id ||
+    saved.sender_id !== userId ||
+    !saved.unsent_at
+  )
+    throw new Error(
+      "The server did not confirm the unsend. Check the chat before retrying."
+    );
+  // Once detached, the existing storage policy permits cleanup only if this
+  // sender still owns the unused file. Cleanup failure cannot undo an unsend.
+  if (message.image_path) {
+    void client.storage
+      .from(MESSAGE_IMAGE_BUCKET)
+      .remove([message.image_path])
+      .catch(() => {});
+  }
+  return saved;
 }
 
 export async function sendChatMessage(

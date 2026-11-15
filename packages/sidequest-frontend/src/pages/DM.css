@@ -289,6 +289,44 @@
   opacity: 0.75;
 }
 
+.app-shell .dm-unsend-button {
+  align-self: flex-end;
+  min-height: 36px;
+  border: 0;
+  border-radius: 8px;
+  padding: 6px 8px;
+  background: transparent;
+  color: #e5d1f6;
+  font: inherit;
+  font-size: 0.8rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.app-shell .dm-unsend-button:hover:not(:disabled) {
+  background: #ffffff12;
+}
+
+.app-shell .dm-unsend-button:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.app-shell .dm-message-unsent {
+  align-self: flex-start;
+  max-width: 85%;
+  padding: 4px 8px;
+  color: #d0cbd9;
+  font-size: 0.85rem;
+  font-style: italic;
+  overflow-wrap: anywhere;
+}
+
+.app-shell .dm-message-unsent--own {
+  align-self: flex-end;
+}
+
 .app-shell .dm-compose {
   display: flex;
   align-items: flex-end;
