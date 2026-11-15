@@ -346,9 +346,15 @@ export default function LoginPage({
               name="password"
               type="password"
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
+              pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
               required
             />
+            <small>
+              At least 8 characters, with an uppercase letter, a number,
+              and a symbol.
+            </small>
           </label>
           <label>
             Confirm password
@@ -356,7 +362,9 @@ export default function LoginPage({
               name="confirmPassword"
               type="password"
               autoComplete="new-password"
-              minLength={6}
+              minLength={8}
+              pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
               required
             />
           </label>
