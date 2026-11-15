@@ -81,7 +81,7 @@ function HomePage() {
         {session ? (
           <ProjectFeed
             followedById={session.user.id}
-            title="Projects from people you follow"
+            title="Following feed"
           />
         ) : null}
       </main>
