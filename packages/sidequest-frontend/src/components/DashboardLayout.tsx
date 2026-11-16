@@ -39,7 +39,7 @@ function DashboardLayout({
           <Link
             className="brand-logo"
             to="/"
-            aria-label="Go to your feed">
+            aria-label="SideQuest home">
             <img
               src="/branding/sidequest-wordmark-dark.png"
               alt="SideQuest"
@@ -57,14 +57,18 @@ function DashboardLayout({
                 className={({ isActive }) =>
                   `nav-item ${to === "/messages" ? "messages-link" : ""} ${isActive ? "active" : ""}`
                 }>
-                <span>{label}</span>
-                {to === "/messages" && <UnreadMessagesBadge />}
-                {window.location.pathname === to && (
-                  <img
-                    src={imgActiveMarker}
-                    alt=""
-                    className="active-marker"
-                  />
+                {({ isActive }) => (
+                  <>
+                    <span>{label}</span>
+                    {to === "/messages" && <UnreadMessagesBadge />}
+                    {isActive && (
+                      <img
+                        src={imgActiveMarker}
+                        alt=""
+                        className="active-marker"
+                      />
+                    )}
+                  </>
                 )}
               </NavLink>
             ))}
