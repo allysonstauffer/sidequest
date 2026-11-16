@@ -7,6 +7,7 @@ from dataclasses import replace
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import httpx
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -89,6 +90,18 @@ class SettingsTests(unittest.TestCase):
         for sender in ("not-an-address", "a@example.invalid,b@example.invalid", "a@example.invalid\nBcc: b@example.invalid"):
             with self.subTest(sender=sender), self.assertRaises(ValueError):
                 EmailSettings.from_env({**ENV, "NOTIFICATION_EMAIL_FROM": sender})
+
+    def test_cloudflare_requires_account_and_token_without_smtp(self):
+        env = {key: value for key, value in ENV.items() if not key.startswith("SMTP_")}
+        env.update(NOTIFICATION_EMAIL_PROVIDER="cloudflare",
+                   CLOUDFLARE_ACCOUNT_ID="a" * 32,
+                   CLOUDFLARE_EMAIL_API_TOKEN="synthetic-token")
+        settings = EmailSettings.from_env(env)
+        self.assertEqual(settings.provider, "cloudflare")
+        self.assertNotIn("synthetic-token", repr(settings))
+        for field in ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_EMAIL_API_TOKEN"):
+            with self.subTest(field=field), self.assertRaises(ValueError):
+                EmailSettings.from_env({key: value for key, value in env.items() if key != field})
 
 
 class TemplateTests(unittest.TestCase):
@@ -174,6 +187,26 @@ class DeliveryTests(unittest.TestCase):
             with self.assertRaises(smtplib.SMTPRecipientsRefused):
                 send_notification_email(build_notification_email(JOB, self.settings), self.settings)
 
+    def test_cloudflare_sends_plain_and_html_and_checks_recipient_result(self):
+        settings = replace(self.settings, provider="cloudflare", cloudflare_account_id="a" * 32,
+                           cloudflare_api_token="synthetic-token")
+        message = build_notification_email(JOB, settings)
+        with patch("notification_emails.httpx.Client") as factory:
+            client = factory.return_value.__enter__.return_value
+            client.post.return_value.json.return_value = {
+                "success": True, "result": {"delivered": [], "queued": [JOB["recipient_email"]],
+                                            "permanent_bounces": []}}
+            send_notification_email(message, settings)
+            payload = client.post.call_args.kwargs["json"]
+            self.assertEqual(payload["from"], ENV["NOTIFICATION_EMAIL_FROM"])
+            self.assertEqual(payload["to"], JOB["recipient_email"])
+            self.assertIn("Paper garden", payload["text"])
+            self.assertIn("<h1>SideQuest</h1>", payload["html"])
+            client.post.return_value.json.return_value["result"] = {
+                "delivered": [], "queued": [], "permanent_bounces": [JOB["recipient_email"]]}
+            with self.assertRaises(RuntimeError):
+                send_notification_email(message, settings)
+
     def test_worker_acknowledges_success_and_does_not_resend_an_empty_queue(self):
         client = MagicMock()
         client.rpc.return_value.execute.side_effect = [SimpleNamespace(data=JOB), SimpleNamespace(data=True), SimpleNamespace(data=None)]
@@ -195,6 +228,20 @@ class DeliveryTests(unittest.TestCase):
         self.assertIs(client.rpc.call_args.args[1]["p_sent"], False)
         self.assertNotIn(JOB["recipient_email"], str(logs.output))
         self.assertNotIn(ENV["SMTP_PASSWORD"], str(logs.output))
+
+    def test_http_failure_logs_only_status_and_numeric_code(self):
+        client = MagicMock()
+        client.rpc.return_value.execute.side_effect = [SimpleNamespace(data=JOB), SimpleNamespace(data=True)]
+        response = httpx.Response(401, json={"errors": [{"code": 10000,
+            "message": f"{JOB['recipient_email']} secret"}]},
+            request=httpx.Request("POST", "https://api.cloudflare.com/client/v4/test"))
+        send = MagicMock(side_effect=httpx.HTTPStatusError("secret", request=response.request,
+                                                       response=response))
+        with self.assertLogs("notification_emails", level="WARNING") as logs:
+            NotificationEmailWorker(client, self.settings, send=send).deliver_one()
+        self.assertIn("HTTP 401; codes [10000]", str(logs.output))
+        self.assertNotIn(JOB["recipient_email"], str(logs.output))
+        self.assertNotIn("secret", str(logs.output))
 
     def test_unacknowledged_send_does_not_immediately_send_again(self):
         client = MagicMock()

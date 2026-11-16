@@ -17,27 +17,32 @@ The existing in-app notification list, read state, and Supabase
 Realtime updates continue to work. FastAPI subscribes to
 Supabase Realtime `INSERT` events on `public.notifications`.
 Each event wakes the backend email worker, which claims a
-private queued job and sends the email through SMTP. Email
-delivery runs on the FastAPI server, so the recipient does not
+private queued job and sends the email through the configured
+provider. Email delivery runs on the FastAPI server, so the recipient does not
 need the app open.
 
 Flow: **notification created → Supabase Realtime → FastAPI →
-SMTP email**. The database outbox makes retries and recovery
+email provider**. The database outbox makes retries and recovery
 possible without relying on a browser staying connected.
 
 ## Configure delivery
 
 Supabase's built-in verification emails are an Auth feature.
-Custom application notifications need an email sender with SMTP
-credentials. These credentials are configured separately in the
-backend; configuring Auth's SMTP in the dashboard alone does not
-configure this worker. See
-[Supabase's SMTP documentation](https://supabase.com/docs/guides/auth/auth-smtp).
+Custom application notifications need a sending provider configured
+in the backend. Cloudflare Email Routing forwards inbound mail; it
+does not enable sending notifications to arbitrary recipients. Onboard
+`gosidequesting.org` under Cloudflare **Email Sending** and create an
+API token with Email Sending permission. Sending to arbitrary app users
+requires Cloudflare Workers Paid; Workers Free can send only to verified
+destination addresses. Configuring Supabase Auth's
+SMTP does not configure this worker.
 
-1. Obtain an SMTP host, port, username, password, and permitted
-   sender address from an email provider. Use the provider's
-   verified sender/domain requirements. Keep credentials in the
-   backend environment, never in frontend `VITE_` variables.
+1. Onboard the sending domain in Cloudflare Email Service and verify
+   its sending DNS records. Create an API token with Email Sending
+   permission scoped to the SideQuest account. Keep the token in the
+   backend environment, never in frontend `VITE_` variables. A
+   verified Email Routing address alone only permits sending to
+   verified destination addresses, not to all app users.
 2. Apply the migrations in this order in the Supabase SQL
    editor, after the existing likes, follow notifications,
    sidequests, projects, profiles, and collaboration-request
@@ -66,12 +71,10 @@ configure this worker. See
    SUPABASE_SECRET_KEY=your-backend-secret-key
    NOTIFICATION_EMAIL_ENABLED=true
    SIDEQUEST_APP_URL=http://localhost:5173
-   NOTIFICATION_EMAIL_FROM=notifications@your-verified-domain.example
-   SMTP_HOST=smtp.your-provider.example
-   SMTP_PORT=587
-   SMTP_SECURITY=starttls
-   SMTP_USERNAME=your-smtp-username
-   SMTP_PASSWORD=your-smtp-password
+   NOTIFICATION_EMAIL_PROVIDER=cloudflare
+   NOTIFICATION_EMAIL_FROM=donotreply@gosidequesting.org
+   CLOUDFLARE_ACCOUNT_ID=your-32-character-account-id
+   CLOUDFLARE_EMAIL_API_TOKEN=your-email-sending-api-token
    ```
 
    A legacy `SUPABASE_SERVICE_ROLE_KEY` can be used instead of
@@ -80,11 +83,12 @@ configure this worker. See
    variables set, `SUPABASE_SERVICE_ROLE_KEY` takes precedence.
    `SUPABASE_KEY` is not used by this privileged worker.
 
-   For implicit TLS, use `SMTP_SECURITY=ssl` and the provider's
-   port, commonly 465. Remote SMTP always uses TLS. Plain SMTP
-   is supported only on localhost for a local mail-capture
-   server; set `SMTP_SECURITY=plain`, its local host/port, and
-   omit username/password if it does not require authentication.
+   Set `NOTIFICATION_EMAIL_PROVIDER=smtp` to use an SMTP provider
+   instead. That mode requires `SMTP_HOST`, and optionally
+   `SMTP_PORT`, `SMTP_SECURITY`, `SMTP_USERNAME`, and
+   `SMTP_PASSWORD`. For implicit TLS, use `SMTP_SECURITY=ssl` and
+   the provider's port, commonly 465. Plain SMTP is supported only
+   on localhost for a local mail-capture server.
 
 4. Set `SIDEQUEST_APP_URL` to the deployed HTTPS frontend URL in
    production. HTTP is allowed only on localhost for
@@ -96,8 +100,8 @@ configure this worker. See
 
    The worker starts automatically when
    `NOTIFICATION_EMAIL_ENABLED=true`. Delivery is disabled by
-   default, so the rest of the app can run without an SMTP
-   account. If explicitly enabled but required settings are
+   default, so the rest of the app can run without an email
+   provider. If explicitly enabled but required settings are
    missing or invalid, backend startup reports a configuration
    error. No packages beyond the existing backend dependencies
    are required.
@@ -138,7 +142,7 @@ are not backfilled.
   claim/acknowledgement functions. Outbox rows are private to
   the backend service role and database administrators.
 - Both plain-text and escaped HTML email bodies are provided.
-  SMTP header fields and links cannot be injected through names
+  email header fields and links cannot be injected through names
   or titles. Provider error details and email addresses are not
   written to delivery logs or the queue's error field.
 - Reading an alert does not resend it or cancel its queued
@@ -154,10 +158,10 @@ are not backfilled.
   jobs. `last_error` contains a generic failure reason. After
   fixing configuration, an administrator can requeue failed jobs
   if desired.
-- Every retry uses a stable `Message-ID`. A timeout or crash
+- SMTP retries use a stable `Message-ID`. A timeout or crash
   after the provider accepts an email but before the database
   records success can result in a duplicate. A `sent` job means
-  SMTP accepted the message, not that the recipient has read it
+  the provider accepted the message, not that the recipient has read it
   or that it reached the inbox rather than spam.
 
 ## Verify
@@ -169,8 +173,9 @@ Run the automated checks from the repository root:
 npm run test:database
 ```
 
-Backend tests mock SMTP and exercise templates, injection
-protection, TLS, account destinations, success/failure handling,
+Backend tests mock SMTP and Cloudflare HTTP delivery and exercise
+templates, injection protection, TLS, account destinations,
+success/failure handling,
 worker startup/shutdown, Realtime insert subscriptions,
 event-driven wakeups, reconnection, and cleanup. Database tests
 execute the real migration and existing notification triggers
@@ -178,7 +183,7 @@ with PGlite to check permissions, duplicates, leases, retries,
 rollback, dismissals, verification, and deletion. Tests do not
 send real emails or modify the hosted database.
 
-After configuring SMTP and applying the migrations, use two test
+After configuring Email Sending and applying the migrations, use two test
 accounts with confirmed email addresses. Follow A or
 like/comment on A's project from B; comment on A's sidequest;
 have A add B as a co-host; and send A a project collaboration
@@ -188,6 +193,6 @@ the intended page, and the outbox jobs become `sent`. Repeat
 with a recipient browser closed. Retry saved
 likes/follows/requests to confirm there is no extra email. Test
 unlike/unfollow or co-host removal before delivery, read-state
-changes, and an SMTP failure followed by recovery. These live
+changes, and a provider failure followed by recovery. These live
 checks require actual provider credentials and a working
 Supabase server key.

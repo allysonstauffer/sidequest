@@ -53,6 +53,9 @@ class EmailSettings:
     smtp_password: str = field(repr=False)
     from_email: str
     site_url: str
+    provider: str = "smtp"
+    cloudflare_account_id: str = ""
+    cloudflare_api_token: str = field(default="", repr=False)
 
     @classmethod
     def from_env(cls, env=None):
@@ -63,30 +66,43 @@ class EmailSettings:
         if enabled not in {"true", "1", "yes"}:
             raise ValueError("NOTIFICATION_EMAIL_ENABLED must be true or false.")
 
-        required = ("SUPABASE_URL", "SMTP_HOST", "NOTIFICATION_EMAIL_FROM", "SIDEQUEST_APP_URL")
+        provider = env.get("NOTIFICATION_EMAIL_PROVIDER", "smtp").strip().lower()
+        if provider not in {"smtp", "cloudflare"}:
+            raise ValueError("NOTIFICATION_EMAIL_PROVIDER must be smtp or cloudflare.")
+        required = ("SUPABASE_URL", "NOTIFICATION_EMAIL_FROM", "SIDEQUEST_APP_URL")
+        if provider == "smtp":
+            required += ("SMTP_HOST",)
+        else:
+            required += ("CLOUDFLARE_ACCOUNT_ID", "CLOUDFLARE_EMAIL_API_TOKEN")
         for name in required:
             if not env.get(name, "").strip():
                 raise ValueError(f"{name} is required when notification emails are enabled.")
         key = env.get("SUPABASE_SERVICE_ROLE_KEY") or env.get("SUPABASE_SECRET_KEY")
         if not key or key.startswith("sb_publishable_"):
             raise ValueError("A backend SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY is required.")
-        security = env.get("SMTP_SECURITY", "starttls").strip().lower()
-        if security not in {"starttls", "ssl", "plain"}:
-            raise ValueError("SMTP_SECURITY must be starttls, ssl, or plain.")
-        host = env["SMTP_HOST"].strip()
-        if security == "plain" and host not in {"localhost", "127.0.0.1", "::1"}:
-            raise ValueError("Plain SMTP is only supported on localhost.")
-        port = int(env.get("SMTP_PORT", "465" if security == "ssl" else "587"))
-        if not 1 <= port <= 65535:
-            raise ValueError("SMTP_PORT must be a valid port number.")
-        username = env.get("SMTP_USERNAME", "")
-        password = env.get("SMTP_PASSWORD", "")
-        if bool(username) != bool(password):
-            raise ValueError("Set both SMTP_USERNAME and SMTP_PASSWORD, or neither.")
+        security, host, port, username, password = "", "", 0, "", ""
+        if provider == "smtp":
+            security = env.get("SMTP_SECURITY", "starttls").strip().lower()
+            if security not in {"starttls", "ssl", "plain"}:
+                raise ValueError("SMTP_SECURITY must be starttls, ssl, or plain.")
+            host = env["SMTP_HOST"].strip()
+            if security == "plain" and host not in {"localhost", "127.0.0.1", "::1"}:
+                raise ValueError("Plain SMTP is only supported on localhost.")
+            port = int(env.get("SMTP_PORT", "465" if security == "ssl" else "587"))
+            if not 1 <= port <= 65535:
+                raise ValueError("SMTP_PORT must be a valid port number.")
+            username = env.get("SMTP_USERNAME", "")
+            password = env.get("SMTP_PASSWORD", "")
+            if bool(username) != bool(password):
+                raise ValueError("Set both SMTP_USERNAME and SMTP_PASSWORD, or neither.")
         sender = env["NOTIFICATION_EMAIL_FROM"].strip()
         email_address(sender)
+        account_id = env.get("CLOUDFLARE_ACCOUNT_ID", "").strip() if provider == "cloudflare" else ""
+        if provider == "cloudflare" and (len(account_id) != 32 or any(c not in "0123456789abcdefABCDEF" for c in account_id)):
+            raise ValueError("CLOUDFLARE_ACCOUNT_ID must be a 32-character hexadecimal ID.")
         return cls(env["SUPABASE_URL"].strip(), key, host, port, security,
-                   username, password, sender, app_url(env["SIDEQUEST_APP_URL"].strip()))
+                   username, password, sender, app_url(env["SIDEQUEST_APP_URL"].strip()),
+                   provider, account_id, env.get("CLOUDFLARE_EMAIL_API_TOKEN", "").strip() if provider == "cloudflare" else "")
 
 
 def build_notification_email(job, settings):
@@ -146,6 +162,28 @@ def build_notification_email(job, settings):
 
 
 def send_notification_email(message, settings):
+    if settings.provider == "cloudflare":
+        recipient = message["To"].addresses[0].addr_spec
+        payload = {
+            "to": recipient,
+            "from": settings.from_email,
+            "subject": str(message["Subject"]),
+            "text": message.get_body(preferencelist=("plain",)).get_content(),
+            "html": message.get_body(preferencelist=("html",)).get_content(),
+        }
+        with httpx.Client(timeout=15) as client:
+            response = client.post(
+                f"https://api.cloudflare.com/client/v4/accounts/{settings.cloudflare_account_id}/email/sending/send",
+                headers={"Authorization": f"Bearer {settings.cloudflare_api_token}"},
+                json=payload,
+            )
+            response.raise_for_status()
+            result = response.json()
+        delivery = result.get("result") or {}
+        if (result.get("success") is not True or recipient in delivery.get("permanent_bounces", [])
+                or recipient not in delivery.get("delivered", []) + delivery.get("queued", [])):
+            raise RuntimeError("Cloudflare did not accept the notification email.")
+        return
     context = ssl.create_default_context()
     if settings.smtp_security == "ssl":
         connection = smtplib.SMTP_SSL(settings.smtp_host, settings.smtp_port, timeout=10, context=context)
@@ -182,8 +220,18 @@ class NotificationEmailWorker:
             sent = True
         except Exception as exc:
             # Provider errors can contain recipient addresses and credentials.
-            # Store/log only a generic failure and exception class.
-            logger.warning("Notification email delivery failed (%s).", type(exc).__name__)
+            # Log only status and numeric provider codes, never error text.
+            if isinstance(exc, httpx.HTTPStatusError):
+                codes = []
+                try:
+                    codes = [error["code"] for error in exc.response.json().get("errors", [])
+                             if isinstance(error.get("code"), int)]
+                except (ValueError, TypeError, KeyError, AttributeError):
+                    pass
+                logger.warning("Notification email delivery failed (HTTP %s; codes %s).",
+                               exc.response.status_code, codes)
+            else:
+                logger.warning("Notification email delivery failed (%s).", type(exc).__name__)
         confirmed = self.client.rpc("finish_notification_email", {
             "p_notification_id": notification_id,
             "p_lease_token": lease_token,
