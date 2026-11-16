@@ -21,10 +21,10 @@ session time limit or inactivity timeout is configured.
 
 See packages/sidequest-frontend/src/auth/supabaseAuthService.ts for the actual sign-in/sign-up implementation, but all is routed through Supabase's sign-up/in function.
 
-## Sign-in Sequence Diagram
+## Sign-up Sequence Diagram
 
 <img width="2488" height="1110" alt="signup" src="https://github.com/user-attachments/assets/f1fd51cb-a549-46a6-81ae-360178c4acb0" />
 
-## Sign-up Sequence Diagram
+## Sign-in Sequence Diagram
 
 <img width="2572" height="1310" alt="signin" src="https://github.com/user-attachments/assets/b6d0c3ba-c216-4614-8dca-8df0b8fde462" />
