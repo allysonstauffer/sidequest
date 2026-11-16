@@ -40,7 +40,11 @@ function SiteLayout() {
             <NavLink to="/profile">Profile</NavLink>
             {session && <NotificationBell />}
             {session && (
-              <NavLink to="/messages" className="messages-link">
+              <NavLink
+                to="/messages"
+                className={({ isActive }) =>
+                  `messages-link${isActive ? " active" : ""}`
+                }>
                 Messages
                 <UnreadMessagesBadge />
               </NavLink>
@@ -54,7 +58,11 @@ function SiteLayout() {
               (session ? (
                 <LogoutButton />
               ) : (
-                <NavLink to="/login" className="site-nav-login">
+                <NavLink
+                  to="/login"
+                  className={({ isActive }) =>
+                    `site-nav-login${isActive ? " active" : ""}`
+                  }>
                   Log in
                 </NavLink>
               ))}

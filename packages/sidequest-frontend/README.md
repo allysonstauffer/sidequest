@@ -285,7 +285,10 @@ Verify by creating flagged and unflagged posts, refreshing to
 confirm persistence, changing the flag from the owner's profile,
 and filtering the feed. A second account must not be able to
 change the first account's flag through the RPC. The current
-details view expands within each project card.
+details panel expands within each project card. Selecting a card
+opens `/projects/:projectId`, which displays that project and
+provides a link back to the feed. Project detail pages retain the
+existing sign-in and onboarding requirements.
 
 ### Login and signup workflow
 
