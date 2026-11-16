@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import Comments from "./Comments";
 import { SKILL_LEVELS } from "../preferences/model";
 import {
   useHobbyCategories,
@@ -1113,6 +1114,7 @@ export default function SidequestEvents({
                       : "RSVP"}
                 </button>
               ) : null}
+              <Comments kind="sidequest" itemId={event.id} viewerId={viewerId} />
             </article>
           ))}
         </div>
