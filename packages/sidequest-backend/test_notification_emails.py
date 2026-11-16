@@ -108,6 +108,22 @@ class TemplateTests(unittest.TestCase):
             self.assertIn(target, message.get_body(preferencelist=("plain",)).get_content())
         self.assertIn("started following you", build_notification_email({**JOB, "type": "user_follow"}, self.settings).get_body(preferencelist=("plain",)).get_content())
 
+    def test_comments_cohost_and_collaboration_have_specific_templates(self):
+        cases = (
+            ("project_comment", "commented on your project", f"/projects/{JOB['project_id']}"),
+            ("sidequest_comment", "commented on your sidequest", "/feed"),
+            ("cohost_invite", "added you as a co-host", "/feed"),
+            ("collaboration_request", "requested to collaborate", "/collaborations"),
+        )
+        for event, wording, destination in cases:
+            with self.subTest(event=event):
+                job = {**JOB, "type": event, "sidequest_title": "Garden walk"}
+                message = build_notification_email(job, self.settings)
+                plain = message.get_body(preferencelist=("plain",)).get_content()
+                self.assertIn(wording, plain)
+                self.assertIn(destination, plain)
+                self.assertNotIn("new notification in your SideQuest inbox", plain)
+
     def test_user_content_is_escaped_and_cannot_add_headers(self):
         message = build_notification_email({**JOB, "actor_name": '<script>\r\nBcc: injected@example.invalid',
                                             "project_title": '<img src=x onerror="attack()">'}, self.settings)

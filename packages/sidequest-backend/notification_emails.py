@@ -96,6 +96,7 @@ def build_notification_email(job, settings):
     # User-controlled names/titles cannot inject mail headers or HTML.
     actor = " ".join(str(job.get("actor_name") or "A hobbyist").split())[:120]
     title = " ".join(str(job.get("project_title") or "your project").split())[:200]
+    sidequest_title = " ".join(str(job.get("sidequest_title") or "a sidequest").split())[:200]
     if job["type"] == "user_follow":
         subject = "You have a new SideQuest follower"
         summary = f"{actor} started following you."
@@ -104,6 +105,22 @@ def build_notification_email(job, settings):
         subject = "Someone liked your SideQuest project"
         summary = f'{actor} liked your project "{title}".'
         destination = f"/projects/{UUID(job['project_id'])}"
+    elif job["type"] == "project_comment":
+        subject = "New comment on your SideQuest project"
+        summary = f'{actor} commented on your project "{title}".'
+        destination = f"/projects/{UUID(job['project_id'])}"
+    elif job["type"] == "sidequest_comment":
+        subject = "New comment on your SideQuest event"
+        summary = f'{actor} commented on your sidequest "{sidequest_title}".'
+        destination = "/feed"
+    elif job["type"] == "cohost_invite":
+        subject = "You were added as a SideQuest co-host"
+        summary = f'{actor} added you as a co-host of "{sidequest_title}".'
+        destination = "/feed"
+    elif job["type"] == "collaboration_request":
+        subject = "New SideQuest collaboration request"
+        summary = f'{actor} requested to collaborate on "{title}".'
+        destination = "/collaborations"
     else:
         subject = "You have a new SideQuest notification"
         summary = "You have a new notification in your SideQuest inbox."

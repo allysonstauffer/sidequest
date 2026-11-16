@@ -1,13 +1,17 @@
 # Email notifications
 
 New notifications in the existing SideQuest notification inbox
-also create an email delivery job. Currently these are project
-likes and new followers. Emails include the actor's name, the
-project title when applicable, and a link to the project or
-follower's profile. Future inbox notification types receive a
-generic email linking to `/notifications` until a specific
-template is added. Direct messages and collaboration requests
-are separate features and do not currently create inbox alerts.
+also create an email delivery job. Covered events are project
+likes, follows, project and sidequest comments, adding a
+sidequest co-host, and new project collaboration requests. The
+recipient is the project author, sidequest host, new co-host,
+followed user, or project owner, respectively. Self-comments do
+not notify the author. Emails include the actor and relevant
+project/sidequest title; links open the project, profile,
+collaboration inbox, or sidequest feed. Future inbox
+notification types receive a generic email linking to
+`/notifications` until a specific template is added. Direct
+messages do not create email alerts.
 
 The existing in-app notification list, read state, and Supabase
 Realtime updates continue to work. FastAPI subscribes to
@@ -34,12 +38,24 @@ configure this worker. See
    sender address from an email provider. Use the provider's
    verified sender/domain requirements. Keep credentials in the
    backend environment, never in frontend `VITE_` variables.
-2. Apply
-   `supabase/migrations/202611150002_notification_emails.sql`
-   once in the Supabase SQL editor, after the existing
-   likes/notifications and follower-notification migrations. It
-   reuses the `supabase_realtime` publication for
-   `notifications`; the private outbox is not published.
+2. Apply the migrations in this order in the Supabase SQL
+   editor, after the existing likes, follow notifications,
+   sidequests, projects, profiles, and collaboration-request
+   migrations:
+
+   - `supabase/migrations/202611150002_notification_emails.sql`
+   - `supabase/migrations/202611160001_comment_cohost_tables.sql`
+   - `supabase/migrations/202611160002_social_notification_events.sql`
+
+   The first migration reuses the `supabase_realtime`
+   publication for `notifications`; the private outbox is not
+   published. The second creates the comment and co-host tables
+   expected by the UI on `main`. The third connects those
+   actions and project collaboration requests to the
+   notification inbox and outbox. It only queues events created
+   after it is applied; it does not backfill earlier comments,
+   co-hosts, or requests.
+
 3. Add the following values to
    `packages/sidequest-backend/.env`. The tracked `.env.example`
    documents the same settings with placeholders. Preserve your
@@ -99,7 +115,10 @@ are not backfilled.
 
 - A database trigger creates one outbox job per new notification
   in the same transaction. A rolled-back event cannot send an
-  email. Duplicate like/follow retries do not create extra jobs.
+  email. Duplicate like/follow retries and duplicate
+  collaboration requests do not create extra jobs. A co-host
+  removal dismisses a pending invitation alert; an already sent
+  email cannot be recalled.
 - FastAPI listens to Supabase Realtime notification inserts and
   immediately wakes the delivery worker. Startup and successful
   subscriptions/reconnections also trigger reconciliation.
@@ -159,13 +178,16 @@ with PGlite to check permissions, duplicates, leases, retries,
 rollback, dismissals, verification, and deletion. Tests do not
 send real emails or modify the hosted database.
 
-After configuring SMTP and applying the migration, use two test
-accounts with confirmed email addresses. Follow account A or
-like A's project from account B. Verify the inbox alert and
-email agree, FastAPI reports the Realtime subscription
-connected, the link opens the correct page, and the outbox job
-becomes `sent`. Repeat with A's browser closed. Retry the same
-saved like/follow to confirm there is no extra email. Test
-unlike/unfollow before delivery, read-state changes, and an SMTP
-failure followed by recovery. These live checks require actual
-provider credentials and a working Supabase server key.
+After configuring SMTP and applying the migrations, use two test
+accounts with confirmed email addresses. Follow A or
+like/comment on A's project from B; comment on A's sidequest;
+have A add B as a co-host; and send A a project collaboration
+request. Verify each recipient's inbox alert and email agree,
+FastAPI reports the Realtime subscription connected, links open
+the intended page, and the outbox jobs become `sent`. Repeat
+with a recipient browser closed. Retry saved
+likes/follows/requests to confirm there is no extra email. Test
+unlike/unfollow or co-host removal before delivery, read-state
+changes, and an SMTP failure followed by recovery. These live
+checks require actual provider credentials and a working
+Supabase server key.

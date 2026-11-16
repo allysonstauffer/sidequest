@@ -3,28 +3,66 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabase";
 import { useNotifications } from "../notifications/useNotifications";
-import { Heart, UserRoundPlus } from "lucide-react";
+import {
+  CalendarDays,
+  Heart,
+  MessageCircle,
+  UserRoundPlus,
+  UsersRound
+} from "lucide-react";
 import FollowButton from "../components/FollowButton";
 import "../notifications/Notifications.css";
 
 type Notification = {
   id: string;
+  type:
+    | "project_like"
+    | "user_follow"
+    | "project_comment"
+    | "sidequest_comment"
+    | "cohost_invite"
+    | "collaboration_request";
   actor_id: string;
   actor_name: string;
+  project_id: string | null;
+  project_title: string | null;
+  sidequest_id: string | null;
+  sidequest_title: string | null;
   created_at: string;
   read_at: string | null;
-} & (
-  | {
-      type: "project_like";
-      project_title: string;
-      project_id: string;
-    }
-  | {
-      type: "user_follow";
-      project_title: null;
-      project_id: null;
-    }
-);
+};
+
+function notificationDestination(item: Notification): string {
+  if (item.type === "user_follow")
+    return `/profile/${item.actor_id}`;
+  if (item.type === "collaboration_request")
+    return "/collaborations";
+  if (
+    item.type === "sidequest_comment" ||
+    item.type === "cohost_invite"
+  )
+    return "/feed";
+  return item.project_id
+    ? `/projects/${item.project_id}`
+    : "/notifications";
+}
+
+function notificationDescription(item: Notification) {
+  switch (item.type) {
+    case "user_follow":
+      return "started following you.";
+    case "project_like":
+      return `liked your project ${item.project_title ?? ""}.`;
+    case "project_comment":
+      return `commented on your project ${item.project_title ?? ""}.`;
+    case "sidequest_comment":
+      return `commented on your sidequest ${item.sidequest_title ?? ""}.`;
+    case "cohost_invite":
+      return `added you as a co-host of ${item.sidequest_title ?? "a sidequest"}.`;
+    case "collaboration_request":
+      return `requested to collaborate on ${item.project_title ?? "your project"}.`;
+  }
+}
 
 export default function NotificationsPage() {
   const { session } = useAuth();
@@ -62,7 +100,7 @@ function NotificationList({ userId }: { userId: string }) {
         const { data, error } = await supabase
           .from("notifications")
           .select(
-            "id, type, actor_id, actor_name, project_title, project_id, created_at, read_at"
+            "id, type, actor_id, actor_name, project_title, project_id, sidequest_id, sidequest_title, created_at, read_at"
           )
           .eq("recipient_id", userId)
           .is("dismissed_at", null)
@@ -96,12 +134,7 @@ function NotificationList({ userId }: { userId: string }) {
     setActionError("");
     try {
       await markRead(item?.id ?? null);
-      if (item && open)
-        navigate(
-          item.type === "user_follow"
-            ? `/profile/${item.actor_id}`
-            : `/projects/${item.project_id}`
-        );
+      if (item && open) navigate(notificationDestination(item));
     } catch (error) {
       setActionError(
         error instanceof Error
@@ -117,7 +150,10 @@ function NotificationList({ userId }: { userId: string }) {
   return (
     <main className="notifications-page">
       <h1>Notifications</h1>
-      <p>See new followers and who liked your projects.</p>
+      <p>
+        See follows, comments, collaboration requests, and
+        activity on your projects and sidequests.
+      </p>
       <div className="notifications-actions">
         <button onClick={refresh}>Refresh</button>
         <button
@@ -151,13 +187,20 @@ function NotificationList({ userId }: { userId: string }) {
                 size={22}
                 aria-hidden="true"
               />
-            ) : (
+            ) : item.type === "project_like" ? (
               <Heart
                 className="notification-heart"
                 size={22}
                 fill="currentColor"
                 aria-hidden="true"
               />
+            ) : item.type === "project_comment" ||
+              item.type === "sidequest_comment" ? (
+              <MessageCircle size={22} aria-hidden="true" />
+            ) : item.type === "cohost_invite" ? (
+              <CalendarDays size={22} aria-hidden="true" />
+            ) : (
+              <UsersRound size={22} aria-hidden="true" />
             )}
             <div>
               <button
@@ -165,14 +208,7 @@ function NotificationList({ userId }: { userId: string }) {
                 disabled={saving}
                 onClick={() => void read(item, true)}>
                 <strong>{item.actor_name}</strong>{" "}
-                {item.type === "user_follow" ? (
-                  "started following you."
-                ) : (
-                  <>
-                    liked your project{" "}
-                    <strong>{item.project_title}</strong>.
-                  </>
-                )}
+                {notificationDescription(item)}
               </button>
               <time dateTime={item.created_at}>
                 {new Date(item.created_at).toLocaleString()}
