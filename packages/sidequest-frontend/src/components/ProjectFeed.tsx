@@ -9,23 +9,23 @@ import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
 import CollaborationRequestForm from "./CollaborationRequestForm";
 import { useAuth } from "../auth/useAuth";
 import LikeButton from "./LikeButton";
+import Comments from "./Comments";
 import ManageEditors from "./ManageEditors";
-import { isLikeSummary, type LikeSummary } from "../lib/likesApi";
-import { loadFollowedAuthorIds } from "../utils/followedProjectAuthors";
-import { SKILL_LEVELS, type SkillLevel } from "../preferences/model";
+import {
+  isLikeSummary,
+  type LikeSummary
+} from "../lib/likesApi";
+import { loadFollowingFeed } from "../lib/followingFeed";
+import {
+  PROJECT_FEED_FIELDS,
+  parseFeedProject,
+  type FeedProject as Project
+} from "../lib/projectFeed";
+import {
+  SKILL_LEVELS,
+  type SkillLevel
+} from "../preferences/model";
 import "./ProjectFeed.css";
-
-type Project = {
-  id: string;
-  author_id: string;
-  title: string;
-  description: string | null;
-  media_urls: string[] | null;
-  created_at: string;
-  looking_for_collaborators: boolean;
-  beginner_friendly: boolean;
-  skill_level: SkillLevel | null;
-};
 
 type ProjectFeedProps = {
   authorId?: string;
@@ -34,48 +34,6 @@ type ProjectFeedProps = {
   title?: string;
   projectId?: string;
 };
-
-function parseProject(value: unknown): Project | null {
-  if (!value || typeof value !== "object") return null;
-
-  const project = value as Record<string, unknown>;
-  if (
-    typeof project.id !== "string" ||
-    typeof project.author_id !== "string" ||
-    typeof project.title !== "string" ||
-    typeof project.created_at !== "string" ||
-    typeof project.looking_for_collaborators !== "boolean" ||
-    typeof project.beginner_friendly !== "boolean" ||
-    (project.skill_level !== null &&
-      !SKILL_LEVELS.some((level) => level === project.skill_level)) ||
-    (project.description !== null &&
-      typeof project.description !== "string") ||
-    (project.media_urls !== null &&
-      (!Array.isArray(project.media_urls) ||
-        !project.media_urls.every(
-          (url) => typeof url === "string"
-        )))
-  ) {
-    return null;
-  }
-
-  return {
-    id: project.id,
-    author_id: project.author_id,
-    title: project.title,
-    description:
-      typeof project.description === "string"
-        ? project.description
-        : null,
-    media_urls: Array.isArray(project.media_urls)
-      ? project.media_urls
-      : null,
-    created_at: project.created_at,
-    looking_for_collaborators: project.looking_for_collaborators,
-    beginner_friendly: project.beginner_friendly as boolean,
-    skill_level: project.skill_level as SkillLevel | null
-  };
-}
 
 export default function ProjectFeed(props: ProjectFeedProps) {
   const { session } = useAuth();
@@ -98,13 +56,20 @@ function ProjectFeedContent({
   const navigate = useNavigate();
   const userId = session?.user.id;
   const [projects, setProjects] = useState<Project[]>([]);
-  const [likes, setLikes] = useState<Record<string, LikeSummary>>({});
+  const [likes, setLikes] = useState<
+    Record<string, LikeSummary>
+  >({});
   const [likesError, setLikesError] = useState("");
-  const [likesRetry, setLikesRetry] = useState(0);
-  const [collaboratorsOnly, setCollaboratorsOnly] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+  const [collaboratorsOnly, setCollaboratorsOnly] =
+    useState(false);
   const [beginnerOnly, setBeginnerOnly] = useState(false);
-  const [skillFilter, setSkillFilter] = useState<SkillLevel | "">("");
-  const [creatorNames, setCreatorNames] = useState<Record<string, string>>({});
+  const [skillFilter, setSkillFilter] = useState<
+    SkillLevel | ""
+  >("");
+  const [creatorNames, setCreatorNames] = useState<
+    Record<string, string>
+  >({});
   const [status, setStatus] = useState<
     "loading" | "ready" | "error"
   >("loading");
@@ -120,8 +85,11 @@ function ProjectFeedContent({
   );
   const [editTitle, setEditTitle] = useState("");
   const [editDescription, setEditDescription] = useState("");
-  const [editBeginnerFriendly, setEditBeginnerFriendly] = useState(false);
-  const [editSkillLevel, setEditSkillLevel] = useState<SkillLevel | "">("");
+  const [editBeginnerFriendly, setEditBeginnerFriendly] =
+    useState(false);
+  const [editSkillLevel, setEditSkillLevel] = useState<
+    SkillLevel | ""
+  >("");
   const [actionNotice, setActionNotice] = useState("");
   const [editableIds, setEditableIds] = useState<string[]>([]);
   const [managingId, setManagingId] = useState<string | null>(null);
@@ -140,60 +108,54 @@ function ProjectFeedContent({
     async function loadProjects() {
       setStatus("loading");
       try {
-        let followedAuthorIds: string[] | null = null;
+        let loadedProjects: Project[];
         if (followedById) {
-          followedAuthorIds = await loadFollowedAuthorIds(
-            async (followerId) => {
-              const { data, error } = await supabase
-                .from("user_follows")
-                .select("followed_id")
-                .eq("follower_id", followerId);
-              return { data, error };
-            },
-            followedById
+          if (followedById !== userId)
+            throw new Error("Please sign in again.");
+          loadedProjects = await loadFollowingFeed(
+            supabase,
+            followedById,
+            {
+              collaboratorsOnly,
+              beginnerOnly,
+              skillLevel: skillFilter
+            }
           );
-          if (followedAuthorIds.length === 0) {
-            if (!active) return;
-            setProjects([]);
-            setLikes({});
-            setLikesError("");
-            setStatus("ready");
-            return;
+        } else {
+          let query = supabase
+            .from("projects")
+            .select(PROJECT_FEED_FIELDS)
+            .order("created_at", { ascending: false });
+          if (authorId) query = query.eq("author_id", authorId);
+          if (projectId) query = query.eq("id", projectId);
+          if (!authorId && !projectId && collaboratorsOnly) {
+            query = query.eq("looking_for_collaborators", true);
           }
+          if (!authorId && !projectId && beginnerOnly) {
+            query = query.eq("beginner_friendly", true);
+          }
+          if (!authorId && !projectId && skillFilter) {
+            query = query.eq("skill_level", skillFilter);
+          }
+          if (!authorId && !projectId) query = query.limit(20);
+          const { data, error } = await query;
+          if (error) throw new Error(error.message);
+          loadedProjects = (data ?? [])
+            .map(parseFeedProject)
+            .filter(
+              (project): project is Project => project !== null
+            );
         }
-
-        let query = supabase
-          .from("projects")
-          .select(
-            "id,author_id,title,description,media_urls,created_at,looking_for_collaborators,beginner_friendly,skill_level"
-          )
-          .order("created_at", { ascending: false });
-        if (authorId) query = query.eq("author_id", authorId);
-        if (projectId) query = query.eq("id", projectId);
-        if (followedAuthorIds) {
-          query = query.in("author_id", followedAuthorIds);
-        }
-        if (!authorId && !projectId && collaboratorsOnly) {
-          query = query.eq("looking_for_collaborators", true);
-        }
-        if (!authorId && !projectId && beginnerOnly) {
-          query = query.eq("beginner_friendly", true);
-        }
-        if (!authorId && !projectId && skillFilter) {
-          query = query.eq("skill_level", skillFilter);
-        }
-        if (!authorId && !followedById && !projectId) query = query.limit(20);
-        const { data, error } = await query;
-        if (error) throw new Error(error.message);
-
-        const loadedProjects = (data ?? [])
-          .map(parseProject)
-          .filter((project): project is Project => project !== null);
         if (userId && loadedProjects.length > 0) {
           try {
-            const result = await supabase.rpc("get_project_like_summaries", {
-              p_project_ids: loadedProjects.map((project) => project.id)
-            });
+            const result = await supabase.rpc(
+              "get_project_like_summaries",
+              {
+                p_project_ids: loadedProjects.map(
+                  (project) => project.id
+                )
+              }
+            );
             if (
               result.error ||
               !Array.isArray(result.data) ||
@@ -202,18 +164,31 @@ function ProjectFeedContent({
               throw new Error("Could not load likes.");
             }
             if (!active) return;
-            setLikes(Object.fromEntries(result.data.map((row: LikeSummary) => [row.project_id, row])));
+            setLikes(
+              Object.fromEntries(
+                result.data.map((row: LikeSummary) => [
+                  row.project_id,
+                  row
+                ])
+              )
+            );
             setLikesError("");
           } catch {
             if (!active) return;
             setLikes({});
-            setLikesError("Could not load likes. You can still browse projects.");
+            setLikesError(
+              "Could not load likes. You can still browse projects."
+            );
           }
         } else {
           setLikes({});
           setLikesError("");
         }
-        const authorIds = [...new Set(loadedProjects.map((project) => project.author_id))];
+        const authorIds = [
+          ...new Set(
+            loadedProjects.map((project) => project.author_id)
+          )
+        ];
         let names: Record<string, string> = {};
         if (authorIds.length > 0) {
           const profiles = await supabase
@@ -223,8 +198,14 @@ function ProjectFeedContent({
           if (!profiles.error) {
             names = Object.fromEntries(
               (profiles.data ?? [])
-                .filter((profile) => typeof profile.username === "string")
-                .map((profile) => [profile.user_id, profile.username as string])
+                .filter(
+                  (profile) =>
+                    typeof profile.username === "string"
+                )
+                .map((profile) => [
+                  profile.user_id,
+                  profile.username as string
+                ])
             );
           }
         }
@@ -257,7 +238,16 @@ function ProjectFeedContent({
     return () => {
       active = false;
     };
-  }, [authorId, followedById, projectId, collaboratorsOnly, beginnerOnly, skillFilter, userId, likesRetry]);
+  }, [
+    authorId,
+    followedById,
+    projectId,
+    collaboratorsOnly,
+    beginnerOnly,
+    skillFilter,
+    userId,
+    reloadKey
+  ]);
 
   function startEditing(project: Project) {
     setOpenMenuId(null);
@@ -337,10 +327,19 @@ function ProjectFeedContent({
     setActionNotice("");
     try {
       const { data, error } = await supabase.auth.getSession();
-      if (error || !data.session || data.session.user.id !== authorId) {
-        throw new Error("Please sign in again before deleting a post.");
+      if (
+        error ||
+        !data.session ||
+        data.session.user.id !== authorId
+      ) {
+        throw new Error(
+          "Please sign in again before deleting a post."
+        );
       }
-      const result = await deleteProjectRequest(project.id, data.session.access_token);
+      const result = await deleteProjectRequest(
+        project.id,
+        data.session.access_token
+      );
       setProjects((current) =>
         current.filter((item) => item.id !== project.id)
       );
@@ -365,17 +364,27 @@ function ProjectFeedContent({
   return (
     <section
       className="project-feed"
+      aria-busy={status === "loading"}
       aria-labelledby="project-feed-title">
       <h2 id="project-feed-title">
-        {title ?? (projectId ? "Project" : authorId ? "Your posts" : "Latest projects")}
+        {title ??
+          (projectId
+            ? "Project"
+            : authorId
+              ? "Your posts"
+              : "Latest projects")}
       </h2>
       {!authorId && !projectId && (
-        <div className="project-feed-filters" aria-label="Filter projects">
+        <div
+          className="project-feed-filters"
+          aria-label="Filter projects">
           <label className="collaboration-option">
             <input
               type="checkbox"
               checked={beginnerOnly}
-              onChange={(event) => setBeginnerOnly(event.target.checked)}
+              onChange={(event) =>
+                setBeginnerOnly(event.target.checked)
+              }
             />
             <span>Beginner-friendly only</span>
           </label>
@@ -383,10 +392,16 @@ function ProjectFeedContent({
             <span>Experience required</span>
             <select
               value={skillFilter}
-              onChange={(event) => setSkillFilter(event.target.value as SkillLevel | "")}>
+              onChange={(event) =>
+                setSkillFilter(
+                  event.target.value as SkillLevel | ""
+                )
+              }>
               <option value="">Any experience</option>
               {SKILL_LEVELS.map((level) => (
-                <option key={level} value={level}>{level}</option>
+                <option key={level} value={level}>
+                  {level}
+                </option>
               ))}
             </select>
           </label>
@@ -394,29 +409,50 @@ function ProjectFeedContent({
             <input
               type="checkbox"
               checked={collaboratorsOnly}
-              onChange={(event) => setCollaboratorsOnly(event.target.checked)}
+              onChange={(event) =>
+                setCollaboratorsOnly(event.target.checked)
+              }
             />
             <span>Looking for collaborators only</span>
           </label>
         </div>
       )}
-      {status === "loading" && <p>Loading projects…</p>}
+      {followedById && (
+        <p className="following-feed-description">
+          Latest posts from creators you follow and communities
+          you’ve joined.
+        </p>
+      )}
+      {status === "loading" && (
+        <p role="status">
+          {followedById
+            ? "Loading your following feed…"
+            : "Loading projects…"}
+        </p>
+      )}
       {status === "error" && (
         <p role="alert">
-          Unable to load projects. Check your connection and try
-          again.
+          {followedById
+            ? "Unable to load your following feed."
+            : "Unable to load projects."}{" "}
+          Check your connection and try again.{" "}
+          <button
+            type="button"
+            onClick={() => setReloadKey((value) => value + 1)}>
+            Try again
+          </button>
         </p>
       )}
       {status === "ready" && projects.length === 0 && (
-        <p>
+        <p role="status">
           {projectId
             ? "This project is unavailable or has been deleted."
             : beginnerOnly || skillFilter || collaboratorsOnly
               ? "No projects match these filters."
-            : followedById
-              ? "No projects from people you follow yet."
-              : authorId
-                ? "You haven’t shared any projects yet."
+              : followedById
+                ? "No posts from creators you follow or communities you’ve joined yet."
+                : authorId
+                  ? "You haven’t shared any projects yet."
                   : "No projects yet."}
         </p>
       )}
@@ -424,7 +460,9 @@ function ProjectFeedContent({
       {likesError && (
         <p role="alert">
           {likesError}{" "}
-          <button type="button" onClick={() => setLikesRetry((value) => value + 1)}>
+          <button
+            type="button"
+            onClick={() => setReloadKey((value) => value + 1)}>
             Retry likes
           </button>
         </p>
@@ -511,6 +549,13 @@ function ProjectFeedContent({
                 />
               )}
               <div className="project-feed-copy">
+                {followedById && project.community_id && (
+                  <p className="project-community-label">
+                    Community:{" "}
+                    {project.community?.name ??
+                      "Community unavailable"}
+                  </p>
+                )}
                 <h3>
                   {projectId ? project.title : (
                     <Link
@@ -527,7 +572,10 @@ function ProjectFeedContent({
                     userId={userId}
                     summary={likes[project.id]}
                     onChange={(summary) =>
-                      setLikes((current) => ({ ...current, [project.id]: summary }))
+                      setLikes((current) => ({
+                        ...current,
+                        [project.id]: summary
+                      }))
                     }
                   />
                 )}
@@ -546,7 +594,9 @@ function ProjectFeedContent({
                   </span>
                 )}
                 {project.beginner_friendly && (
-                  <span className="project-beginner-badge">Beginner-friendly</span>
+                  <span className="project-beginner-badge">
+                    Beginner-friendly
+                  </span>
                 )}
                 {project.skill_level && (
                   <span className="project-skill-badge">
@@ -555,7 +605,10 @@ function ProjectFeedContent({
                 )}
                 <details className="project-details">
                   <summary>Project details</summary>
-                  <p>{project.description || "No description provided."}</p>
+                  <p>
+                    {project.description ||
+                      "No description provided."}
+                  </p>
                   <p>
                     Collaboration status:{" "}
                     {project.looking_for_collaborators
@@ -577,19 +630,27 @@ function ProjectFeedContent({
                       userId={session.user.id}
                     />
                   )}
-                {authorId && accessToken && authorId === userId && (
-                  <ProjectCollaborationToggle
-                    projectId={project.id}
-                    active={project.looking_for_collaborators}
-                    disabled={deletingId !== null || savingId !== null}
-                    onChange={(active) =>
-                      setProjects((current) =>
-                        current.map((item) =>
-                          item.id === project.id
-                            ? { ...item, looking_for_collaborators: active }
-                            : item
+                {authorId &&
+                  accessToken &&
+                  authorId === userId && (
+                    <ProjectCollaborationToggle
+                      projectId={project.id}
+                      active={project.looking_for_collaborators}
+                      disabled={
+                        deletingId !== null || savingId !== null
+                      }
+                      onChange={(active) =>
+                        setProjects((current) =>
+                          current.map((item) =>
+                            item.id === project.id
+                              ? {
+                                  ...item,
+                                  looking_for_collaborators:
+                                    active
+                                }
+                              : item
+                          )
                         )
-                      )
                     }
                   />
                 )}
@@ -635,10 +696,19 @@ function ProjectFeedContent({
                       <span>Experience required</span>
                       <select
                         value={editSkillLevel}
-                        onChange={(event) => setEditSkillLevel(event.target.value as SkillLevel | "")}>
-                        <option value="">No specific experience</option>
+                        onChange={(event) =>
+                          setEditSkillLevel(
+                            event.target.value as
+                              SkillLevel | ""
+                          )
+                        }>
+                        <option value="">
+                          No specific experience
+                        </option>
                         {SKILL_LEVELS.map((level) => (
-                          <option key={level} value={level}>{level}</option>
+                          <option key={level} value={level}>
+                            {level}
+                          </option>
                         ))}
                       </select>
                     </label>
@@ -646,7 +716,11 @@ function ProjectFeedContent({
                       <input
                         type="checkbox"
                         checked={editBeginnerFriendly}
-                        onChange={(event) => setEditBeginnerFriendly(event.target.checked)}
+                        onChange={(event) =>
+                          setEditBeginnerFriendly(
+                            event.target.checked
+                          )
+                        }
                       />
                       <span>Beginner-friendly project</span>
                     </label>
@@ -666,6 +740,9 @@ function ProjectFeedContent({
                       </button>
                     </div>
                   </form>
+                )}
+                {userId && (
+                  <Comments kind="project" itemId={project.id} viewerId={userId} />
                 )}
               </div>
             </article>

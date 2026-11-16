@@ -12,10 +12,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from PIL import Image, ImageOps, UnidentifiedImageError
 from supabase import AuthApiError, ClientOptions, PostgrestAPIError, create_client
 from pydantic import BaseModel, Field
+from notification_emails import notification_email_lifespan
 
 load_dotenv(Path(__file__).with_name(".env"))
 
-app = FastAPI()
+app = FastAPI(lifespan=notification_email_lifespan)
 frontend_origins = [
     origin.strip()
     for origin in os.getenv("SIDEQUEST_FRONTEND_ORIGINS", "").split(",")

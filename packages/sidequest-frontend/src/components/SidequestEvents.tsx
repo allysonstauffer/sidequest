@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import Comments from "./Comments";
 import { useAuth } from "../auth/useAuth";
 import ManageEditors from "./ManageEditors";
 import { SKILL_LEVELS } from "../preferences/model";
@@ -180,6 +181,7 @@ export default function SidequestEvents({
     useHobbyCategories();
   const [events, setEvents] = useState<SidequestEvent[]>([]);
   const [hostNames, setHostNames] = useState<Record<string, string>>({});
+  const [cohostsByEvent, setCohostsByEvent] = useState<Record<string, string[]>>({});
   const [rsvpIds, setRsvpIds] = useState<Set<string>>(
     new Set()
   );
@@ -197,6 +199,15 @@ export default function SidequestEvents({
   const [editingId, setEditingId] = useState<string | null>(
     null
   );
+  const [managingCohostsId, setManagingCohostsId] = useState<string | null>(null);
+  const [cohostSearch, setCohostSearch] = useState("");
+  const [cohostCandidates, setCohostCandidates] = useState<
+    { user_id: string; username: string }[]
+  >([]);
+  const [cohostSearchStatus, setCohostSearchStatus] = useState<
+    "idle" | "loading" | "ready"
+  >("idle");
+  const [cohostSaving, setCohostSaving] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(
     null
   );
@@ -310,7 +321,22 @@ export default function SidequestEvents({
           );
         }
 
-        const hostIds = [...new Set(loadedEvents.map((event) => event.host_id))];
+        const cohostsByEvent: Record<string, string[]> = {};
+        if (loadedEvents.length > 0) {
+          const { data: cohosts, error: cohostError } = await supabase
+            .from("sidequest_cohosts")
+            .select("sidequest_id,user_id")
+            .in("sidequest_id", loadedEvents.map((event) => event.id));
+          if (cohostError) throw new Error(cohostError.message);
+          for (const cohost of cohosts ?? []) {
+            (cohostsByEvent[cohost.sidequest_id] ??= []).push(cohost.user_id);
+          }
+        }
+
+        const hostIds = [...new Set([
+          ...loadedEvents.map((event) => event.host_id),
+          ...Object.values(cohostsByEvent).flat()
+        ])];
         let loadedHostNames: Record<string, string> = {};
         if (hostIds.length > 0) {
           const profiles = await supabase
@@ -346,6 +372,7 @@ export default function SidequestEvents({
         if (!active) return;
         setEditableIds(editable);
         setEvents(loadedEvents);
+        setCohostsByEvent(cohostsByEvent);
         setHostNames(loadedHostNames);
         setRsvpIds(loadedRsvpIds);
         setStatus("ready");
@@ -518,8 +545,84 @@ export default function SidequestEvents({
 
   function startEditing(sidequestId: string) {
     setOpenMenuId(null);
+    setManagingCohostsId(null);
     setEditingId(sidequestId);
     setNotice("");
+  }
+
+  function startManagingCohosts(sidequestId: string) {
+    setOpenMenuId(null);
+    setEditingId(null);
+    setManagingCohostsId(sidequestId);
+    setCohostSearch("");
+    setCohostCandidates([]);
+    setCohostSearchStatus("idle");
+    setNotice("");
+  }
+
+  async function searchCohosts(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const term = cohostSearch.trim().replace(/[\\%_]/g, (character) => `\\${character}`);
+    if (!term) return;
+    setCohostSearchStatus("loading");
+    setCohostCandidates([]);
+    const { data, error } = await supabase
+      .from("creator_profiles")
+      .select("user_id,username")
+      .ilike("username", `%${term}%`)
+      .order("username", { ascending: true })
+      .limit(20);
+    if (error) {
+      setNotice(error.message);
+      setCohostSearchStatus("idle");
+      return;
+    }
+    setCohostCandidates((data ?? []).filter(
+      (profile): profile is { user_id: string; username: string } =>
+        typeof profile.user_id === "string" && typeof profile.username === "string"
+    ));
+    setCohostSearchStatus("ready");
+  }
+
+  async function addCohost(sidequestId: string, userId: string) {
+    if (cohostSaving) return;
+    setCohostSaving(true);
+    setNotice("");
+    try {
+      const { error } = await supabase.from("sidequest_cohosts").insert({
+        sidequest_id: sidequestId,
+        user_id: userId
+      });
+      if (error) throw new Error(error.message);
+      setNotice("Co-host added.");
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not add co-host.");
+    } finally {
+      setCohostSaving(false);
+    }
+  }
+
+  async function removeCohost(sidequestId: string, userId: string) {
+    if (cohostSaving) return;
+    setCohostSaving(true);
+    setNotice("");
+    try {
+      const { data, error } = await supabase
+        .from("sidequest_cohosts")
+        .delete()
+        .eq("sidequest_id", sidequestId)
+        .eq("user_id", userId)
+        .select("user_id");
+      if (error) throw new Error(error.message);
+      if (!data?.length) throw new Error("Only the primary host can remove a co-host.");
+      setNotice("Co-host removed.");
+      setReloadKey((value) => value + 1);
+    } catch (error) {
+      setNotice(error instanceof Error ? error.message : "Could not remove co-host.");
+    } finally {
+      setCohostSaving(false);
+    }
   }
 
   function cancelEditing() {
@@ -828,6 +931,11 @@ export default function SidequestEvents({
                         onClick={() => startEditing(event.id)}>
                         Edit sidequest
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => startManagingCohosts(event.id)}>
+                        Manage co-hosts
+                      </button>
                       {event.host_id === viewerId && (
                         <button
                           type="button"
@@ -862,17 +970,32 @@ export default function SidequestEvents({
                   {event.skill_level}
                 </p>
                 <h3>{event.title}</h3>
-                {hostId === viewerId ? (
-                  <p>Hosted by you</p>
-                ) : (
-                  <Link
-                    className="sidequest-event-host-link"
-                    to={`/profile/${event.host_id}`}>
-                    {hostNames[event.host_id]
-                      ? `Hosted by @${hostNames[event.host_id]}`
-                      : "View host profile"}
-                  </Link>
-                )}
+                <div className="sidequest-event-hosts">
+                  <span>Hosted by </span>
+                  {event.host_id === viewerId ? (
+                    <span>you (primary host)</span>
+                  ) : (
+                    <Link to={`/profile/${event.host_id}`}>
+                      {hostNames[event.host_id]
+                        ? `@${hostNames[event.host_id]} (primary host)`
+                        : "Primary host"}
+                    </Link>
+                  )}
+                  {(cohostsByEvent[event.id] ?? []).map((cohostId) => (
+                    <span key={cohostId}>
+                      {", "}
+                      {cohostId === viewerId ? (
+                        "you"
+                      ) : (
+                        <Link to={`/profile/${cohostId}`}>
+                          {hostNames[cohostId]
+                            ? `@${hostNames[cohostId]}`
+                            : "Co-host"}
+                        </Link>
+                      )}
+                    </span>
+                  ))}
+                </div>
                 {event.description ? (
                   <p>{event.description}</p>
                 ) : null}
@@ -882,6 +1005,62 @@ export default function SidequestEvents({
                 </p>
                 <p>{event.location}</p>
               </div>
+              {managingCohostsId === event.id && (
+                <section className="sidequest-cohost-manager" aria-label={`Co-hosts for ${event.title}`}>
+                  <h4>Manage co-hosts</h4>
+                  {(cohostsByEvent[event.id] ?? []).length === 0 ? (
+                    <p>No co-hosts yet.</p>
+                  ) : (
+                    <ul>
+                      {(cohostsByEvent[event.id] ?? []).map((cohostId) => (
+                        <li key={cohostId}>
+                          <Link to={`/profile/${cohostId}`}>
+                            {hostNames[cohostId] ? `@${hostNames[cohostId]}` : "Co-host"}
+                          </Link>
+                          <button type="button" disabled={cohostSaving}
+                            onClick={() => void removeCohost(event.id, cohostId)}>
+                            Remove
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <form onSubmit={(formEvent) => void searchCohosts(formEvent)}>
+                    <label>
+                      <span>Find a user by username</span>
+                      <input type="search" value={cohostSearch}
+                        onChange={(changeEvent) => setCohostSearch(changeEvent.target.value)}
+                        maxLength={80} required />
+                    </label>
+                    <button type="submit" disabled={cohostSearchStatus === "loading"}>
+                      {cohostSearchStatus === "loading" ? "Searching…" : "Search"}
+                    </button>
+                  </form>
+                  {cohostSearchStatus === "ready" && (
+                    cohostCandidates.filter((candidate) => candidate.user_id !== event.host_id &&
+                      !(cohostsByEvent[event.id] ?? []).includes(candidate.user_id)).length === 0
+                      ? <p>No available users found.</p> : (
+                      <ul aria-label="User search results">
+                        {cohostCandidates
+                          .filter((candidate) => candidate.user_id !== event.host_id &&
+                            !(cohostsByEvent[event.id] ?? []).includes(candidate.user_id))
+                          .map((candidate) => (
+                            <li key={candidate.user_id}>
+                              <span>@{candidate.username}</span>
+                              <button type="button" disabled={cohostSaving}
+                                onClick={() => void addCohost(event.id, candidate.user_id)}>
+                                Add
+                              </button>
+                            </li>
+                          ))}
+                      </ul>
+                    )
+                  )}
+                  <button type="button" onClick={() => setManagingCohostsId(null)}>
+                    Done
+                  </button>
+                </section>
+              )}
               {editingId === event.id && (
                 <form
                   className="sidequest-create-form sidequest-edit-form"
@@ -987,6 +1166,7 @@ export default function SidequestEvents({
                       : "RSVP"}
                 </button>
               ) : null}
+              <Comments kind="sidequest" itemId={event.id} viewerId={viewerId} />
             </article>
           ))}
         </div>

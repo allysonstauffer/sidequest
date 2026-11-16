@@ -81,6 +81,19 @@
   white-space: pre-wrap;
 }
 
+.project-feed .following-feed-description {
+  margin: 0 0 18px;
+  color: #d0c4dc;
+  line-height: 1.5;
+}
+
+.project-feed-copy .project-community-label {
+  margin: 0 0 10px;
+  color: #e4cff6;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .project-feed-copy time {
   color: #c4b4cf;
   font-size: 13px;
