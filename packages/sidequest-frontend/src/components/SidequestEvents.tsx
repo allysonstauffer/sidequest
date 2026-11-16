@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import { useAuth } from "../auth/useAuth";
+import ManageEditors from "./ManageEditors";
 import { SKILL_LEVELS } from "../preferences/model";
 import {
   useHobbyCategories,
@@ -198,6 +200,9 @@ export default function SidequestEvents({
   const [openMenuId, setOpenMenuId] = useState<string | null>(
     null
   );
+  const [editableIds, setEditableIds] = useState<string[]>([]);
+  const [managingId, setManagingId] = useState<string | null>(null);
+  const { session } = useAuth();
   const [isUpdating, setIsUpdating] = useState(false);
   const [rsvpInProgress, setRsvpInProgress] = useState<
     string | null
@@ -321,7 +326,25 @@ export default function SidequestEvents({
           }
         }
 
+        let editable: string[] = [];
+        const foreignIds = loadedEvents
+          .filter((event) => event.host_id !== viewerId)
+          .map((event) => event.id);
+        if (foreignIds.length > 0) {
+          const grants = await supabase
+            .from("edit_access_grants")
+            .select("sidequest_id")
+            .eq("collaborator_id", viewerId)
+            .in("sidequest_id", foreignIds);
+          if (!grants.error) {
+            editable = (grants.data ?? [])
+              .map((grant) => grant.sidequest_id)
+              .filter((id): id is string => typeof id === "string");
+          }
+        }
+
         if (!active) return;
+        setEditableIds(editable);
         setEvents(loadedEvents);
         setHostNames(loadedHostNames);
         setRsvpIds(loadedRsvpIds);
@@ -561,23 +584,27 @@ export default function SidequestEvents({
     setNotice("");
     try {
       const { data, error } = await supabase
-        .from("sidequests")
-        .update({
-          title,
-          description: String(
-            formData.get("description") ?? ""
-          ).trim(),
-          starts_at: startsAt.toISOString(),
-          ends_at: endsAt.toISOString(),
-          location,
-          hobby,
-          skill_level: skillLevel
-        })
-        .eq("id", sidequestId)
-        .eq("host_id", viewerId)
-        .select("id")
-        .maybeSingle();
-      if (error) throw new Error(error.message);
+        .rpc("update_sidequest_details", {
+          p_sidequest_id: sidequestId,
+          p_changes: {
+            title,
+            description: String(
+              formData.get("description") ?? ""
+            ).trim(),
+            starts_at: startsAt.toISOString(),
+            ends_at: endsAt.toISOString(),
+            location,
+            hobby,
+            skill_level: skillLevel
+          }
+        });
+      if (error) {
+        throw new Error(
+          error.code === "42501"
+            ? "You don't have permission to edit this sidequest."
+            : error.message
+        );
+      }
       if (!data) {
         throw new Error(
           "This sidequest could not be updated. It may no longer be available."
@@ -775,7 +802,8 @@ export default function SidequestEvents({
             <article
               className="sidequest-event-card"
               key={event.id}>
-              {event.host_id === viewerId && (
+              {(event.host_id === viewerId ||
+                editableIds.includes(event.id)) && (
                 <div className="sidequest-event-actions">
                   <button
                     className="sidequest-event-menu-trigger"
@@ -800,10 +828,34 @@ export default function SidequestEvents({
                         onClick={() => startEditing(event.id)}>
                         Edit sidequest
                       </button>
+                      {event.host_id === viewerId && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setManagingId(event.id);
+                          }}>
+                          Manage editors
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
               )}
+              {managingId === event.id &&
+                event.host_id === viewerId &&
+                session?.access_token && (
+                  <>
+                    <ManageEditors
+                      target="sidequest"
+                      targetId={event.id}
+                      accessToken={session.access_token}
+                    />
+                    <button type="button" onClick={() => setManagingId(null)}>
+                      Close
+                    </button>
+                  </>
+                )}
               <div>
                 <p className="sidequest-event-meta">
                   {displayHobby(event.hobby, categories)} ·{" "}

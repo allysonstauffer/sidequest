@@ -102,11 +102,27 @@ class PostingTests(unittest.TestCase):
             if request.method == "DELETE":
                 self.assertEqual(request.url.params["author_id"], f"eq.{self.user_id}")
                 return httpx.Response(200, json=[{"id": self.project_id}])
-            if request.method == "PATCH":
-                self.assertEqual(request.url.params["author_id"], f"eq.{self.user_id}")
-                return httpx.Response(200, json=[{
-                    "id": self.project_id, **json.loads(request.content),
-                }])
+        if path == "/rest/v1/rpc/update_project_details":
+            body = json.loads(request.content)
+            if self.failure == "no_edit_access":
+                return httpx.Response(403, json={
+                    "code": "42501", "message": "denied", "details": None, "hint": None,
+                })
+            return httpx.Response(200, json={
+                "id": body["p_project_id"], **body["p_changes"],
+            })
+        if path.startswith("/rest/v1/rpc/") and path.endswith("_edit_access"):
+            body = json.loads(request.content)
+            if self.failure == "not_owner":
+                return httpx.Response(403, json={
+                    "code": "42501", "message": "denied", "details": None, "hint": None,
+                })
+            if path.endswith("/list_edit_access"):
+                return httpx.Response(200, json=[{"user_id": self.other_user_id, "username": "Helper"}])
+            return httpx.Response(200, json={
+                "target_type": body["p_target_type"], "target_id": body["p_target_id"],
+                "user_id": body["p_user_id"], "allowed": body["p_allowed"],
+            })
         self.fail(f"Unexpected request: {request.method} {path}")
 
     def publish(self, image=None, headers=None, collaboration=None, fields=None):
@@ -187,6 +203,35 @@ class PostingTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertIs(response.json()["project"]["beginner_friendly"], True)
         self.assertEqual(response.json()["project"]["skill_level"], "Intermediate")
+
+    def test_user_without_edit_access_cannot_update_post(self):
+        self.failure = "no_edit_access"
+        response = self.client.patch(
+            f"/api/upload?id={self.project_id}",
+            headers={"Authorization": f"Bearer {self.token}"},
+            json={"title": "Updated project"},
+        )
+        self.assertEqual(response.status_code, 403)
+
+    def test_owner_can_grant_list_and_revoke_edit_access(self):
+        headers = {"Authorization": f"Bearer {self.token}"}
+        base = f"/api/projects/{self.project_id}/editors"
+        granted = self.client.put(base, headers=headers, json={"user_id": self.other_user_id})
+        self.assertEqual(granted.status_code, 200)
+        self.assertIs(granted.json()["allowed"], True)
+        listed = self.client.get(base, headers=headers)
+        self.assertEqual(listed.json()["editors"][0]["username"], "Helper")
+        revoked = self.client.delete(f"{base}/{self.other_user_id}", headers=headers)
+        self.assertIs(revoked.json()["allowed"], False)
+
+    def test_non_owner_cannot_manage_edit_access(self):
+        self.failure = "not_owner"
+        response = self.client.put(
+            f"/api/sidequests/{self.project_id}/editors",
+            headers={"Authorization": f"Bearer {self.token}"},
+            json={"user_id": self.other_user_id},
+        )
+        self.assertEqual(response.status_code, 403)
 
     def test_privileged_key_does_not_replace_user_auth(self):
         self.key = "sb_secret_synthetic-test-key"
