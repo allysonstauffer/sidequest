@@ -9,6 +9,7 @@ import ProjectCollaborationToggle from "./ProjectCollaborationToggle";
 import CollaborationRequestForm from "./CollaborationRequestForm";
 import { useAuth } from "../auth/useAuth";
 import LikeButton from "./LikeButton";
+import Comments from "./Comments";
 import ManageEditors from "./ManageEditors";
 import { isLikeSummary, type LikeSummary } from "../lib/likesApi";
 import { loadFollowedAuthorIds } from "../utils/followedProjectAuthors";
@@ -666,6 +667,9 @@ function ProjectFeedContent({
                       </button>
                     </div>
                   </form>
+                )}
+                {userId && (
+                  <Comments kind="project" itemId={project.id} viewerId={userId} />
                 )}
               </div>
             </article>
