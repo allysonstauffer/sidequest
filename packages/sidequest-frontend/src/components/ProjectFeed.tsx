@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import {
   deleteProject as deleteProjectRequest,
@@ -10,6 +10,7 @@ import CollaborationRequestForm from "./CollaborationRequestForm";
 import { useAuth } from "../auth/useAuth";
 import LikeButton from "./LikeButton";
 import Comments from "./Comments";
+import ManageEditors from "./ManageEditors";
 import { isLikeSummary, type LikeSummary } from "../lib/likesApi";
 import { loadFollowedAuthorIds } from "../utils/followedProjectAuthors";
 import { SKILL_LEVELS, type SkillLevel } from "../preferences/model";
@@ -95,6 +96,7 @@ function ProjectFeedContent({
   projectId
 }: ProjectFeedProps) {
   const { session } = useAuth();
+  const navigate = useNavigate();
   const userId = session?.user.id;
   const [projects, setProjects] = useState<Project[]>([]);
   const [likes, setLikes] = useState<Record<string, LikeSummary>>({});
@@ -122,6 +124,16 @@ function ProjectFeedContent({
   const [editBeginnerFriendly, setEditBeginnerFriendly] = useState(false);
   const [editSkillLevel, setEditSkillLevel] = useState<SkillLevel | "">("");
   const [actionNotice, setActionNotice] = useState("");
+  const [editableIds, setEditableIds] = useState<string[]>([]);
+  const [managingId, setManagingId] = useState<string | null>(null);
+  const token = accessToken ?? session?.access_token;
+  const isOwner = (project: Project) =>
+    !!token && !!userId && project.author_id === userId;
+  const canEdit = (project: Project) =>
+    isOwner(project) || editableIds.includes(project.id);
+  const showMenu = (project: Project) =>
+    !!token &&
+    (projectId ? canEdit(project) : !!authorId && authorId === userId);
 
   useEffect(() => {
     let active = true;
@@ -218,6 +230,22 @@ function ProjectFeedContent({
           }
         }
         if (!active) return;
+        let editable: string[] = [];
+        if (projectId && userId) {
+          const checks = await Promise.all(
+            loadedProjects
+              .filter((project) => project.author_id !== userId)
+              .map(async (project) => {
+                const result = await supabase.rpc("can_edit_project", {
+                  p_project_id: project.id
+                });
+                return result.data === true ? project.id : null;
+              })
+          );
+          editable = checks.filter((id): id is string => id !== null);
+        }
+        if (!active) return;
+        setEditableIds(editable);
         setProjects(loadedProjects);
         setCreatorNames(names);
         setStatus("ready");
@@ -254,7 +282,7 @@ function ProjectFeedContent({
     event: FormEvent<HTMLFormElement>
   ) {
     event.preventDefault();
-    if (!accessToken || !editingId || savingId) return;
+    if (!token || !editingId || savingId) return;
 
     const title = editTitle.trim();
     if (!title || title.length > 200) {
@@ -265,7 +293,7 @@ function ProjectFeedContent({
     setSavingId(editingId);
     setActionNotice("");
     try {
-      await updateProjectRequest(editingId, accessToken, {
+      await updateProjectRequest(editingId, token, {
         title,
         description: editDescription.trim() || null,
         beginner_friendly: editBeginnerFriendly,
@@ -407,8 +435,20 @@ function ProjectFeedContent({
           {projects.map((project) => (
             <article
               className="project-feed-card"
-              key={project.id}>
-              {authorId && accessToken && authorId === userId && (
+              key={project.id}
+              style={projectId ? undefined : { cursor: "pointer" }}
+              onClick={(event) => {
+                if (
+                  projectId ||
+                  (event.target as HTMLElement).closest(
+                    "a, button, input, select, textarea, summary, details, form, label"
+                  )
+                ) {
+                  return;
+                }
+                navigate(`/projects/${encodeURIComponent(project.id)}`);
+              }}>
+              {showMenu(project) && (
                 <div className="project-card-actions">
                   <button
                     className="project-menu-trigger"
@@ -437,17 +477,29 @@ function ProjectFeedContent({
                         onClick={() => startEditing(project)}>
                         Edit project
                       </button>
-                      <button
-                        type="button"
-                        className="project-card-menu-delete"
-                        disabled={deletingId !== null}
-                        onClick={() =>
-                          void deleteProject(project)
-                        }>
-                        {deletingId === project.id
-                          ? "Deleting…"
-                          : "Delete project"}
-                      </button>
+                      {isOwner(project) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setOpenMenuId(null);
+                            setManagingId(project.id);
+                          }}>
+                          Manage editors
+                        </button>
+                      )}
+                      {isOwner(project) && authorId && (
+                        <button
+                          type="button"
+                          className="project-card-menu-delete"
+                          disabled={deletingId !== null}
+                          onClick={() =>
+                            void deleteProject(project)
+                          }>
+                          {deletingId === project.id
+                            ? "Deleting…"
+                            : "Delete project"}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>
@@ -460,7 +512,15 @@ function ProjectFeedContent({
                 />
               )}
               <div className="project-feed-copy">
-                <h3>{project.title}</h3>
+                <h3>
+                  {projectId ? project.title : (
+                    <Link
+                      className="project-card-link"
+                      to={`/projects/${encodeURIComponent(project.id)}`}>
+                      {project.title}
+                    </Link>
+                  )}
+                </h3>
                 {userId && (
                   <LikeButton
                     projectId={project.id}
@@ -533,6 +593,18 @@ function ProjectFeedContent({
                       )
                     }
                   />
+                )}
+                {managingId === project.id && token && isOwner(project) && (
+                  <>
+                    <ManageEditors
+                      target="project"
+                      targetId={project.id}
+                      accessToken={token}
+                    />
+                    <button type="button" onClick={() => setManagingId(null)}>
+                      Close
+                    </button>
+                  </>
                 )}
                 {editingId === project.id && (
                   <form

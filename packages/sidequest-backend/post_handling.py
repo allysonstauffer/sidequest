@@ -384,22 +384,74 @@ def update_upload(
         changes["beginner_friendly"] = project.beginner_friendly
     if "skill_level" in project.model_fields_set:
         changes["skill_level"] = project.skill_level
+    # The owner or a user granted edit access may update; the database decides.
     try:
-        result = (
-            client.table("projects")
-            .update(changes)
-            .eq("id", str(id))
-            .eq("author_id", str(user.id))
-            .select("id,title,description,created_at,media_urls,beginner_friendly,skill_level")
-            .execute()
-        )
-        if not result.data:
-            raise HTTPException(status_code=404, detail="Post not found.")
-    except HTTPException:
-        raise
+        result = client.rpc("update_project_details", {
+            "p_project_id": str(id), "p_changes": changes,
+        }).execute()
+    except PostgrestAPIError as exc:
+        if exc.code == "42501":
+            raise HTTPException(status_code=403, detail="You do not have permission to edit this post.") from exc
+        if exc.code == "22023":
+            raise HTTPException(status_code=400, detail=exc.message) from exc
+        raise HTTPException(status_code=502, detail="Could not update post.") from exc
     except Exception as exc:
         raise HTTPException(status_code=502, detail="Could not update post.") from exc
-    return {"project": result.data[0]}
+    if not isinstance(result.data, dict) or result.data.get("id") != str(id):
+        raise HTTPException(status_code=404, detail="Post not found.")
+    return {"project": result.data}
+
+
+class EditAccessBody(BaseModel):
+    user_id: UUID
+
+
+def edit_access_rpc(authorization, function, params):
+    client, _user = authenticated_client(authorization)
+    try:
+        result = client.rpc(function, params).execute()
+    except PostgrestAPIError as exc:
+        if exc.code == "42501":
+            raise HTTPException(403, "Only the owner can manage edit access.") from exc
+        if exc.code == "22023":
+            raise HTTPException(400, exc.message) from exc
+        logging.exception("Could not change edit access")
+        raise HTTPException(502, "Could not update edit access. Please try again.") from exc
+    except Exception as exc:
+        logging.exception("Edit access service unavailable")
+        raise HTTPException(502, "Could not update edit access. Please try again.") from exc
+    return result.data
+
+
+def set_edit_access(target_type, target_id, user_id, allowed, authorization):
+    data = edit_access_rpc(authorization, "set_edit_access", {
+        "p_target_type": target_type, "p_target_id": str(target_id),
+        "p_user_id": str(user_id), "p_allowed": allowed,
+    })
+    if not isinstance(data, dict) or data.get("allowed") is not allowed:
+        raise HTTPException(502, "The server did not confirm the change. Refresh before retrying.")
+    return data
+
+
+@app.get("/api/{target_type}s/{target_id}/editors")
+def list_editors(target_type: Literal["project", "sidequest"], target_id: UUID,
+                 authorization: str | None = Header(default=None)):
+    data = edit_access_rpc(authorization, "list_edit_access", {
+        "p_target_type": target_type, "p_target_id": str(target_id),
+    })
+    return {"editors": data if isinstance(data, list) else []}
+
+
+@app.put("/api/{target_type}s/{target_id}/editors")
+def grant_editor(target_type: Literal["project", "sidequest"], target_id: UUID,
+                 body: EditAccessBody, authorization: str | None = Header(default=None)):
+    return set_edit_access(target_type, target_id, body.user_id, True, authorization)
+
+
+@app.delete("/api/{target_type}s/{target_id}/editors/{user_id}")
+def revoke_editor(target_type: Literal["project", "sidequest"], target_id: UUID,
+                  user_id: UUID, authorization: str | None = Header(default=None)):
+    return set_edit_access(target_type, target_id, user_id, False, authorization)
 
 
 @app.delete("/api/upload")
