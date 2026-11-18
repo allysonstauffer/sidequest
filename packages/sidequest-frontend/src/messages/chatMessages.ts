@@ -1,4 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { uploadMessageImage } from "../lib/imageUploadApi.ts";
 
 export const MESSAGE_FIELDS =
   "id, room_id, sender_id, text, image_path, created_at, unsent_at";
@@ -10,6 +11,54 @@ const extensions: Record<string, string> = {
   "image/png": "png",
   "image/webp": "webp"
 };
+
+function cleanupKey(userId: string) {
+  return `sidequest:pending-dm-image-cleanup:${userId}`;
+}
+
+function pendingCleanup(userId: string): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(cleanupKey(userId)) ?? "[]");
+    return Array.isArray(stored)
+      ? stored.filter((path): path is string =>
+          typeof path === "string" && path.split("/")[1] === userId)
+      : [];
+  } catch {
+    return [];
+  }
+}
+
+function rememberCleanup(userId: string, path: string) {
+  if (typeof window === "undefined") return;
+  try {
+    const pending = new Set(pendingCleanup(userId));
+    pending.add(path);
+    window.localStorage.setItem(cleanupKey(userId), JSON.stringify([...pending]));
+  } catch (error) {
+    console.error("Could not queue DM image cleanup", error);
+  }
+}
+
+async function retryCleanup(client: Pick<SupabaseClient, "storage">, userId: string) {
+  if (typeof window === "undefined") return;
+  const pending = pendingCleanup(userId);
+  if (!pending.length) return;
+  const remaining: string[] = [];
+  for (const path of pending) {
+    try {
+      const { error } = await client.storage.from(MESSAGE_IMAGE_BUCKET).remove([path]);
+      if (error) throw error;
+    } catch {
+      remaining.push(path);
+    }
+  }
+  try {
+    window.localStorage.setItem(cleanupKey(userId), JSON.stringify(remaining));
+  } catch (error) {
+    console.error("Could not save DM cleanup state", error);
+  }
+}
 
 export type ChatMessage = {
   id: string;
@@ -107,6 +156,7 @@ export async function unsendChatMessage(
     await client.auth.getSession();
   if (authError || auth.session?.user.id !== userId)
     throw new Error("Please sign in again before unsending.");
+  await retryCleanup(client, userId);
   const { data, error } = await client.rpc("unsend_message", {
     p_message_id: message.id
   });
@@ -126,13 +176,18 @@ export async function unsendChatMessage(
     throw new Error(
       "The server did not confirm the unsend. Check the chat before retrying."
     );
-  // Once detached, the existing storage policy permits cleanup only if this
-  // sender still owns the unused file. Cleanup failure cannot undo an unsend.
+  // The message is already unsent. Wait for cleanup so failures are visible;
+  // a failed removal must not misreport the successful unsend as a failure.
   if (message.image_path) {
-    void client.storage
-      .from(MESSAGE_IMAGE_BUCKET)
-      .remove([message.image_path])
-      .catch(() => {});
+    try {
+      const { error } = await client.storage
+        .from(MESSAGE_IMAGE_BUCKET)
+        .remove([message.image_path]);
+      if (error) throw error;
+    } catch (error) {
+      console.error("Could not remove an unsent message image", error);
+      rememberCleanup(userId, message.image_path);
+    }
   }
   return saved;
 }
@@ -144,7 +199,8 @@ export async function sendChatMessage(
     userId: string;
     text: string;
     image?: File | null;
-  }
+  },
+  uploadPhoto = uploadMessageImage
 ): Promise<ChatMessage> {
   const text = input.text.trim();
   if (!text && !input.image)
@@ -154,19 +210,22 @@ export async function sendChatMessage(
     await client.auth.getSession();
   if (authError || auth.session?.user.id !== input.userId)
     throw new Error("Please sign in again before sending.");
+  await retryCleanup(client, input.userId);
   let imagePath: string | null = null;
   const storage = client.storage.from(MESSAGE_IMAGE_BUCKET);
   if (input.image) {
-    imagePath = `${input.roomId}/${input.userId}/${crypto.randomUUID()}.${extensions[input.image.type]}`;
-    const { error } = await storage.upload(
-      imagePath,
-      input.image,
-      { contentType: input.image.type, upsert: false }
-    );
-    if (error)
-      throw new Error(
-        "Could not upload your photo. Please try again."
+    try {
+      const uploaded = await uploadPhoto(
+        input.roomId, input.image, auth.session.access_token
       );
+      const expectedPrefix = `${input.roomId}/${input.userId}/`;
+      if (!uploaded.path.startsWith(expectedPrefix) ||
+        !/^[a-f0-9-]+\.jpg$/.test(uploaded.path.slice(expectedPrefix.length)))
+        throw new Error("The server returned an invalid image path.");
+      imagePath = uploaded.path;
+    } catch {
+      throw new Error("Could not upload your photo. Please try again.");
+    }
   }
   const confirm = (value: unknown) => {
     const message = parseChatMessage(value);
@@ -202,7 +261,12 @@ export async function sendChatMessage(
     // Clean up only definite database rejections. A network failure may have
     // committed; retain that object and let the user reconcile with history.
     if (!saved.error && /^(23|22|42)/.test(error.code ?? "")) {
-      await storage.remove([imagePath]).catch(() => {});
+      try {
+        const { error: cleanupError } = await storage.remove([imagePath]);
+        if (cleanupError) throw cleanupError;
+      } catch {
+        rememberCleanup(input.userId, imagePath);
+      }
     }
   }
   if (error)

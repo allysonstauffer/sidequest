@@ -1,5 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabase";
+import { storedImageUrl } from "../lib/storedImageUrl";
+import { uploadAvatar } from "../lib/imageUploadApi";
 import "./CreatorProfile.css";
 
 type CreatorLink = { label: string; url: string };
@@ -55,7 +57,7 @@ function parseCreator(value: unknown): Creator | null {
     user_id: row.user_id,
     username: row.username as string | null,
     bio: row.bio,
-    avatar_url: row.avatar_url as string | null,
+    avatar_url: storedImageUrl(row.avatar_url, "creator-avatars", row.user_id as string),
     links
   };
 }
@@ -160,16 +162,14 @@ export default function CreatorProfile({
     try {
       let avatarUrl = removePicture ? null : creator.avatar_url;
       if (picture && !removePicture) {
-        const extension = picture.type === "image/png"
-          ? "png" : picture.type === "image/webp" ? "webp" : "jpg";
-        uploadedPath = `${userId}/${crypto.randomUUID()}.${extension}`;
-        const { error: uploadError } = await supabase.storage
-          .from("creator-avatars")
-          .upload(uploadedPath, picture, { contentType: picture.type });
-        if (uploadError) throw uploadError;
-        avatarUrl = supabase.storage
-          .from("creator-avatars")
-          .getPublicUrl(uploadedPath).data.publicUrl;
+        const { data: auth, error: authError } = await supabase.auth.getSession();
+        if (authError || auth.session?.user.id !== userId)
+          throw new Error("Please sign in again before changing your avatar.");
+        const uploaded = await uploadAvatar(picture, auth.session.access_token);
+        uploadedPath = uploaded.path;
+        avatarUrl = storedImageUrl(uploaded.url, "creator-avatars", userId);
+        if (!uploadedPath.startsWith(`${userId}/`) || !avatarUrl)
+          throw new Error("The server returned an invalid avatar.");
       }
 
       const { data, error } = await supabase
@@ -188,12 +188,14 @@ export default function CreatorProfile({
       if (creator.avatar_url !== updated.avatar_url) {
         const oldPath = storedAvatarPath(userId, creator.avatar_url);
         if (oldPath) {
-          void supabase.storage.from("creator-avatars").remove([oldPath]);
+          const { error } = await supabase.storage.from("creator-avatars").remove([oldPath]);
+          if (error) console.error("Could not remove the old avatar", error);
         }
       }
     } catch (error) {
       if (uploadedPath) {
-        void supabase.storage.from("creator-avatars").remove([uploadedPath]);
+        const { error } = await supabase.storage.from("creator-avatars").remove([uploadedPath]);
+        if (error) console.error("Could not remove the rejected avatar", error);
       }
       setNotice(error instanceof Error ? error.message : "Unable to save profile.");
     } finally {

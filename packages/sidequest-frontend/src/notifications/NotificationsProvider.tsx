@@ -13,8 +13,8 @@ export default function NotificationsProvider({
 }: {
   children: ReactNode;
 }) {
-  const { session } = useAuth();
-  return session ? (
+  const { session, mfaStatus } = useAuth();
+  return session && mfaStatus === "satisfied" ? (
     <SignedInNotifications
       key={session.user.id}
       userId={session.user.id}>

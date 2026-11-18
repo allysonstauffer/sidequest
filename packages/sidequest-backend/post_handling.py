@@ -34,6 +34,32 @@ MAX_UPLOAD_BYTES = 10 * 1024 * 1024
 Image.MAX_IMAGE_PIXELS = 25_000_000
 
 
+def decoded_jpeg(attachment: UploadFile, max_bytes: int, dimensions: tuple[int, int]):
+    original = attachment.file.read(max_bytes + 1)
+    if not original or len(original) > max_bytes:
+        raise HTTPException(status_code=413, detail="Image file is too large.")
+    try:
+        with Image.open(io.BytesIO(original)) as source:
+            if source.format not in {"JPEG", "PNG", "WEBP"}:
+                raise HTTPException(status_code=400, detail="Choose a JPG, PNG, or WebP image.")
+            if source.width * source.height > Image.MAX_IMAGE_PIXELS:
+                raise HTTPException(status_code=413, detail="Image dimensions are too large.")
+            image = ImageOps.exif_transpose(source)
+            image.load()
+        image.thumbnail(dimensions)
+        if image.mode in {"RGBA", "LA"} or "transparency" in image.info:
+            background = Image.new("RGBA", image.size, "white")
+            image = Image.alpha_composite(background, image.convert("RGBA"))
+        output = io.BytesIO()
+        image.convert("RGB").save(output, format="JPEG", quality=80, optimize=True)
+        data = output.getvalue()
+        if len(data) > max_bytes:
+            raise HTTPException(status_code=413, detail="Image file is too large.")
+        return data
+    except (UnidentifiedImageError, OSError, ValueError, Image.DecompressionBombError) as exc:
+        raise HTTPException(status_code=400, detail="Choose a valid image.") from exc
+
+
 def authenticated_client(authorization: str | None):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Sign in before posting.")
@@ -95,6 +121,26 @@ def authenticated_client(authorization: str | None):
     if not user:
         raise HTTPException(status_code=401, detail="Please sign in again.")
     return supabase, user
+
+
+def trusted_storage_client():
+    url = os.getenv("SUPABASE_URL")
+    key = os.getenv("SUPABASE_SECRET_KEY")
+    if not url or not key:
+        raise HTTPException(503, "Image storage is not configured on the server.")
+    return create_client(url, key)
+
+
+def check_upload_quota(client, bucket: str):
+    try:
+        result = client.rpc("storage_upload_within_quota", {
+            "target_bucket": bucket,
+        }).execute()
+    except Exception as exc:
+        logging.exception("Could not check image quota")
+        raise HTTPException(502, "Could not check your upload limit. Try again.") from exc
+    if result.data is not True:
+        raise HTTPException(429, "Image upload limit reached. Try again later.")
 
 
 class CollaborationRequestBody(BaseModel):
@@ -191,6 +237,31 @@ class AccountDeletion(BaseModel):
     password: str
 
 
+def list_storage_entries(storage, folder: str):
+    """List every direct child before deleting anything in this folder."""
+    entries = []
+    offset = 0
+    while True:
+        page = storage.list(folder, {"limit": 100, "offset": offset})
+        entries.extend(page)
+        if len(page) < 100:
+            return entries
+        offset += len(page)
+
+
+def remove_storage_folder(storage, folder: str):
+    """Remove files through Storage so the underlying objects are deleted."""
+    while True:
+        paths = [
+            f"{folder}/{entry['name']}"
+            for entry in storage.list(folder, {"limit": 100, "offset": 0})
+            if entry.get("id") and entry.get("name")
+        ]
+        if not paths:
+            return
+        storage.remove(paths)
+
+
 @app.delete("/api/account")
 def delete_account(
     request: AccountDeletion,
@@ -228,20 +299,19 @@ def delete_account(
     if not verified.user or verified.user.id != user.id:
         raise HTTPException(status_code=403, detail="Incorrect password.")
 
-    bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
-    folder = f"images/{user.id}"
     try:
-        storage = admin.storage.from_(bucket)
-        while True:
-            files = storage.list(folder, {"limit": 100, "offset": 0})
-            paths = [
-                f"{folder}/{item['name']}"
-                for item in files
-                if item.get("id") and item.get("name")
-            ]
-            if not paths:
-                break
-            storage.remove(paths)
+        remove_storage_folder(
+            admin.storage.from_(os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")),
+            f"images/{user.id}",
+        )
+        remove_storage_folder(admin.storage.from_("creator-avatars"), str(user.id))
+        dm_storage = admin.storage.from_("dm-images")
+        # DM objects are stored as <room>/<sender>/<file>. A user can have
+        # uploads in many rooms, including uploads never attached to a message.
+        for room in list_storage_entries(dm_storage, ""):
+            room_name = room.get("name")
+            if room_name and not room.get("id"):
+                remove_storage_folder(dm_storage, f"{room_name}/{user.id}")
     except Exception as exc:
         raise HTTPException(
             status_code=502,
@@ -258,6 +328,52 @@ def delete_account(
         ) from exc
 
     return {"deleted": True}
+
+
+@app.post("/api/images/avatar")
+def upload_avatar(
+    attachment: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+):
+    client, user = authenticated_client(authorization)
+    data = decoded_jpeg(attachment, 2 * 1024 * 1024, (512, 512))
+    check_upload_quota(client, "creator-avatars")
+    path = f"{user.id}/{uuid4()}.jpg"
+    try:
+        storage = trusted_storage_client().storage.from_("creator-avatars")
+        storage.upload(path=path, file=data, file_options={"content-type": "image/jpeg"})
+    except Exception as exc:
+        logging.exception("Avatar upload failed")
+        raise HTTPException(502, "Could not upload the avatar.") from exc
+    return {"path": path, "url": storage.get_public_url(path)}
+
+
+@app.post("/api/images/dm/{room_id}")
+def upload_dm_image(
+    room_id: UUID,
+    attachment: UploadFile = File(...),
+    authorization: str | None = Header(default=None),
+):
+    client, user = authenticated_client(authorization)
+    try:
+        membership = client.table("room_participants").select("room_id") \
+            .eq("room_id", str(room_id)).eq("user_id", str(user.id)).limit(1).execute()
+    except Exception as exc:
+        logging.exception("Could not verify DM room membership")
+        raise HTTPException(502, "Could not verify conversation access.") from exc
+    if not membership.data:
+        raise HTTPException(403, "You are not in this conversation.")
+    data = decoded_jpeg(attachment, MAX_UPLOAD_BYTES, (1920, 1920))
+    check_upload_quota(client, "dm-images")
+    path = f"{room_id}/{user.id}/{uuid4()}.jpg"
+    try:
+        trusted_storage_client().storage.from_("dm-images").upload(
+            path=path, file=data, file_options={"content-type": "image/jpeg"}
+        )
+    except Exception as exc:
+        logging.exception("DM image upload failed")
+        raise HTTPException(502, "Could not upload the photo to this conversation.") from exc
+    return {"path": path}
 
 
 @app.post("/api/upload")
@@ -282,6 +398,8 @@ def upload(
         raise HTTPException(status_code=400, detail="Choose a valid experience level.")
 
     supabase, user = authenticated_client(authorization)
+
+    check_upload_quota(supabase, "project-media")
 
     original = attachment.file.read(MAX_UPLOAD_BYTES + 1)
 
@@ -315,7 +433,7 @@ def upload(
 
     bucket = os.getenv("SUPABASE_STORAGE_BUCKET", "project-media")
     path = f"images/{user.id}/{uuid4().hex}.jpg"
-    storage = supabase.storage.from_(bucket)
+    storage = trusted_storage_client().storage.from_(bucket)
 
     #actual supabase insertion time, try uploading file into our storage, else err if didn't work
     try:
@@ -516,7 +634,7 @@ def delete_upload(id: UUID, authorization: str | None = Header(default=None)):
     if storage_paths:
 
         try:
-            supabase.storage.from_(bucket).remove(storage_paths)
+            trusted_storage_client().storage.from_(bucket).remove(storage_paths)
 
         except Exception:
             logging.exception("Post %s was deleted, but image cleanup failed", id)

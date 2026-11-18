@@ -2,6 +2,7 @@ import { useRef, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import DashboardLayout from "../components/DashboardLayout";
 import { supabase } from "../lib/supabase";
+import { storedImageUrl } from "../lib/storedImageUrl";
 import "./SearchPage.css";
 
 type UserResult = {
@@ -24,7 +25,7 @@ function parseUser(value: unknown): UserResult | null {
     user_id: row.user_id,
     username: row.username,
     bio: row.bio,
-    avatar_url: row.avatar_url
+    avatar_url: storedImageUrl(row.avatar_url, "creator-avatars", row.user_id)
   };
 }
 

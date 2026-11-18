@@ -7,6 +7,7 @@ import { Search, UsersRound, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../auth/useAuth";
 import { supabase } from "../lib/supabase";
+import { storedImageUrl } from "../lib/storedImageUrl";
 import { useHobbyCategories } from "../hobbies/useHobbyCategories";
 import type {
   DiscoveryContentItem,
@@ -61,6 +62,7 @@ function mapProjectContent(
   const mediaUrls = project.media_urls;
   if (
     typeof project.id !== "string" ||
+    typeof project.author_id !== "string" ||
     typeof project.title !== "string" ||
     (project.description !== null &&
       typeof project.description !== "string") ||
@@ -79,7 +81,7 @@ function mapProjectContent(
     kind: "Project",
     beginnerFriendly: project.beginner_friendly,
     imageUrl: Array.isArray(mediaUrls)
-      ? mediaUrls[0]
+      ? storedImageUrl(mediaUrls[0], "project-media", project.author_id) ?? undefined
       : undefined
   };
 }
@@ -356,7 +358,7 @@ export function CommunityDiscovery() {
         let query = supabase
           .from("projects")
           .select(
-            "id,title,description,media_urls,beginner_friendly,created_at"
+            "id,author_id,title,description,media_urls,beginner_friendly,created_at"
           );
         if (beginnerFriendlyOnly) {
           query = query.eq("beginner_friendly", true);

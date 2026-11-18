@@ -1,6 +1,7 @@
 """Deliver inbox notifications from a private, transactional database outbox."""
 
 import asyncio
+import base64
 import logging
 import os
 import smtplib
@@ -14,6 +15,7 @@ from email.headerregistry import Address
 from email.message import EmailMessage
 from email.utils import format_datetime
 from html import escape
+from pathlib import Path
 from urllib.parse import urlparse
 from uuid import UUID
 
@@ -21,6 +23,8 @@ import httpx
 from supabase import AsyncClientOptions, ClientOptions, create_async_client, create_client
 
 logger = logging.getLogger(__name__)
+EMAIL_LOGO = Path(__file__).with_name("sidequest-icon.png")
+EMAIL_LOGO_CID = "sidequest-logo"
 
 
 def email_address(value):
@@ -153,10 +157,15 @@ def build_notification_email(job, settings):
     message["Message-ID"] = f"<notification-{notification_id}@{sender.domain}>"
     message.set_content(f"{summary}\n\nView on SideQuest: {link}\n\nYour notifications: {inbox_link}\n")
     message.add_alternative(
+        f'<p><img src="cid:{EMAIL_LOGO_CID}" alt="SideQuest" width="57" height="56"></p>'
         f'<h1>SideQuest</h1><p>{escape(summary)}</p>'
         f'<p><a href="{escape(link, quote=True)}">View on SideQuest</a></p>'
         f'<p><a href="{escape(inbox_link, quote=True)}">Your notifications</a></p>',
         subtype="html",
+    )
+    message.get_body(preferencelist=("html",)).add_related(
+        EMAIL_LOGO.read_bytes(), maintype="image", subtype="png",
+        cid=f"<{EMAIL_LOGO_CID}>", filename="sidequest-icon.png",
     )
     return message
 
@@ -166,11 +175,25 @@ def send_notification_email(message, settings):
         recipient = message["To"].addresses[0].addr_spec
         payload = {
             "to": recipient,
-            "from": settings.from_email,
+            "from": {
+                "address": settings.from_email,
+                "name": message["From"].addresses[0].display_name,
+            },
             "subject": str(message["Subject"]),
             "text": message.get_body(preferencelist=("plain",)).get_content(),
             "html": message.get_body(preferencelist=("html",)).get_content(),
         }
+        payload["attachments"] = [
+            {
+                "content": base64.b64encode(part.get_content()).decode("ascii"),
+                "filename": part.get_filename(),
+                "type": part.get_content_type(),
+                "disposition": "inline",
+                "content_id": part["Content-ID"].strip("<>"),
+            }
+            for part in message.walk() if part.get_content_maintype() == "image"
+            and part["Content-ID"]
+        ]
         with httpx.Client(timeout=15) as client:
             response = client.post(
                 f"https://api.cloudflare.com/client/v4/accounts/{settings.cloudflare_account_id}/email/sending/send",

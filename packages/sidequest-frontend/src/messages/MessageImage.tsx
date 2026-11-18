@@ -18,7 +18,7 @@ export default function MessageImage({
       try {
         const { data, error } = await supabase.storage
           .from(MESSAGE_IMAGE_BUCKET)
-          .createSignedUrl(path, 300);
+          .createSignedUrl(path, 60);
         if (error || !data?.signedUrl)
           throw new Error("Image unavailable");
         if (active) {
@@ -32,7 +32,7 @@ export default function MessageImage({
     void load();
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void load();
-    }, 240000);
+    }, 45000);
     window.addEventListener("focus", load);
     return () => {
       active = false;

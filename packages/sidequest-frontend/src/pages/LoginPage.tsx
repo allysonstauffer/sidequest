@@ -347,8 +347,8 @@ export default function LoginPage({
               type="password"
               autoComplete="new-password"
               minLength={8}
-              pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
-              title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
+              pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="Use at least 8 characters, including lowercase and uppercase letters, a number, and a symbol."
               required
             />
             <small>
@@ -363,8 +363,8 @@ export default function LoginPage({
               type="password"
               autoComplete="new-password"
               minLength={8}
-              pattern="(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
-              title="Use at least 8 characters, including an uppercase letter, a number, and a symbol."
+              pattern="(?=.*[a-z])(?=.*[A-Z])(?=.*[0-9])(?=.*[^A-Za-z0-9]).{8,}"
+              title="Use at least 8 characters, including lowercase and uppercase letters, a number, and a symbol."
               required
             />
           </label>

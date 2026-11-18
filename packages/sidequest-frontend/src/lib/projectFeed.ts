@@ -1,5 +1,6 @@
 import { SKILL_LEVELS } from "../preferences/model.ts";
 import type { SkillLevel } from "../preferences/model.ts";
+import { storedImageUrl } from "./storedImageUrl.ts";
 
 export const PROJECT_FEED_FIELDS =
   "id,author_id,title,description,media_urls,created_at,looking_for_collaborators,beginner_friendly,skill_level";
@@ -64,7 +65,11 @@ export function parseFeedProject(
     author_id: project.author_id,
     title: project.title,
     description: project.description as string | null,
-    media_urls: project.media_urls as string[] | null,
+    media_urls: Array.isArray(project.media_urls)
+      ? project.media_urls
+          .map((url) => storedImageUrl(url, "project-media", project.author_id as string))
+          .filter((url): url is string => url !== null)
+      : null,
     created_at: project.created_at,
     looking_for_collaborators:
       project.looking_for_collaborators,

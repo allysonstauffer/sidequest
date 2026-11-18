@@ -6,3 +6,6 @@ __pycache__/
 /__pycache__
 *.mjs
 *.sql
+*.sql
+*.mjs
+*.test.ts
