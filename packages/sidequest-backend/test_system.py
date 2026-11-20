@@ -1,5 +1,3 @@
-"""System tests for writes that require a signed-in user."""
-
 import unittest
 
 from fastapi.testclient import TestClient
