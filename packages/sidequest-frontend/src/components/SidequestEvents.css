@@ -193,6 +193,62 @@
   font-size: 13px;
 }
 
+.sidequest-event-hosts {
+  margin: 2px 0 6px;
+  color: #d8d8f6;
+  font-size: 13px;
+}
+
+.sidequest-event-hosts a,
+.sidequest-cohost-manager a {
+  color: #d8c6e8;
+}
+
+.sidequest-cohost-manager {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #c9b2df;
+  border-radius: 8px;
+  background: #38313f;
+}
+
+.sidequest-cohost-manager h4 {
+  margin: 0 0 12px;
+}
+
+.sidequest-cohost-manager ul {
+  padding: 0;
+  list-style: none;
+}
+
+.sidequest-cohost-manager li,
+.sidequest-cohost-manager form {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.sidequest-cohost-manager label {
+  display: flex;
+  flex: 1 1 180px;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sidequest-cohost-manager input {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 2px solid #c9b2df;
+  border-radius: 8px;
+  background: #24232b;
+  color: #ffffff;
+  font: inherit;
+}
+
 .sidequest-event-card p {
   margin: 6px 0;
   color: #d8d8f6;

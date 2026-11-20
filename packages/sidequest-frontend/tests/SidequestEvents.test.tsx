@@ -10,6 +10,7 @@ import {
   waitFor
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
+import { AuthContext } from "../src/auth/useAuth";
 import SidequestEvents from "../src/components/SidequestEvents";
 
 const mocks = vi.hoisted(() => ({
@@ -80,16 +81,28 @@ function renderEvents(rsvped = false) {
         delete: mocks.deleteRsvp
       };
     }
-    if (table === "creator_profiles") return queryResult([]);
+    if (
+      table === "creator_profiles" ||
+      table === "sidequest_cohosts" ||
+      table === "edit_access_grants"
+    )
+      return queryResult([]);
     throw new Error(`Unexpected table: ${table}`);
   });
   render(
-    <MemoryRouter>
-      <SidequestEvents
-        viewerId="user-1"
-        title="Upcoming sidequests"
-      />
-    </MemoryRouter>
+    <AuthContext.Provider
+      value={{
+        session: null,
+        loading: false,
+        mfaStatus: "satisfied"
+      }}>
+      <MemoryRouter>
+        <SidequestEvents
+          viewerId="user-1"
+          title="Upcoming sidequests"
+        />
+      </MemoryRouter>
+    </AuthContext.Provider>
   );
 }
 
@@ -169,6 +182,9 @@ test("a user with a saved RSVP can choose Add to calendar", async () => {
       .getByRole("button", { name: "Add to calendar" })
       .hasAttribute("disabled")
   ).toBe(false);
+  expect(
+    screen.getByRole("button", { name: "Comments" })
+  ).toBeTruthy();
 });
 
 test("only an explicit calendar click authorizes Google and sends the event details", async () => {

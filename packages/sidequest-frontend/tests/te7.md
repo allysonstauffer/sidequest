@@ -4,7 +4,8 @@ Ticket: Make Google Calendar an optional RSVP action
 Work completed November 19–20, 2026
 
 Part I covers the optional Google Calendar action from ticket.
-Part II unig tests community validation and activity recommendations as two separate units outside that feature.
+Part II unig tests community validation and activity
+recommendations as two separate units outside that feature.
 
 ## Part I: Test-driven development
 
@@ -260,14 +261,22 @@ calendar coverage.
 
 | Tests                                             | Passing |
 | ------------------------------------------------- | ------- |
-| Existing frontend tests                           | 52      |
+| Existing and merged frontend tests                | 55      |
 | Part II: validation and recommendation unit tests | 6       |
 | Extra calendar unit tests                         | 6       |
 | RSVP/calendar component tests                     | 15      |
-| **Frontend total**                                | **79**  |
-| Backend tests                                     | 61      |
-| Database tests                                    | 11      |
-| **Project total**                                 | **151** |
+| **Frontend total**                                | **82**  |
+| Backend tests                                     | 65      |
+| Database tests                                    | 12      |
+| **Project total**                                 | **159** |
+
+These totals include the comments, cohost, edit-access, and
+navigation changes merged from the remote branch. The calendar
+component tests now supply the auth context and empty
+cohost/edit-access query results needed by the combined
+component. The saved-RSVP test also checks that Comments and Add
+to calendar are both available. The six Part II tests are
+unchanged.
 
 Type checking, lint, and the production build also passed. Vite
 still reports a non-blocking warning about a bundle larger than
