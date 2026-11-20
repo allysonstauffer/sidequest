@@ -1,4 +1,4 @@
-# TE7: TDD and unit testing
+# TE7: Automated testing
 
 Ticket: Make Google Calendar an optional RSVP action
 
@@ -266,4 +266,92 @@ npm run lint --workspace=sidequest-frontend
 | Backend tests                                     | 72      |
 | Database tests                                    | 12      |
 | **Project total**                                 | **166** |
+
+## Testing levels
+
+- **Unit tests** verify isolated functions. The selected tools are
+  Vitest in a Node environment. Community validation and activity
+  recommendation have six tests across two units; Google Calendar
+  helpers have additional unit coverage.
+- **System tests** verify FastAPI endpoints with their request
+  validation, authentication, service logic, and mocked Supabase
+  data-access calls. The selected tools are Python `unittest`,
+  `TestClient`, and `httpx.MockTransport`.
+- **UI/component tests** verify complete interactions through the
+  React interface. The selected tools are Vitest, jsdom, React
+  Testing Library, and mocked Supabase/Google clients. The
+  RSVP/calendar component has 15 tests.
+- **Database tests** verify migrations and Row Level Security in
+  isolated PGlite databases using Node's test runner.
+
+## Part III: System testing
+
+The backend API test suites exercise more than one application
+layer for a feature. Representative system tests include:
+
+- `test_like_and_unlike_use_explicit_state_and_user_jwt` in
+  [packages/sidequest-backend/test_likes.py](../../sidequest-backend/test_likes.py)
+  sends like/unlike HTTP requests, verifies authentication, and
+  observes the RPC/database call produced for each action.
+- `test_send_uses_user_jwt_and_server_derived_identity` in
+  [packages/sidequest-backend/test_collaboration.py](../../sidequest-backend/test_collaboration.py)
+  submits a collaboration request through `TestClient`, validates
+  the API response, and verifies the RPC parameters used in the
+  Supabase data-access layer.
+- [packages/sidequest-backend/test_system.py](../../sidequest-backend/test_system.py)
+  verifies that signed-out API requests are rejected consistently
+  across project likes and collaboration actions.
+
+These tests use synthetic UUIDs and in-memory/mock HTTP responses.
+They do not require a live Supabase project.
+
+## Part IV: UI testing
+
+The complete RSVP-to-optional-calendar user story is covered in
+[SidequestEvents.test.tsx](SidequestEvents.test.tsx):
+
+1. A user RSVPs for an event. The test verifies visible state
+   changes and that Google authorization does not start
+   automatically.
+2. The user then explicitly selects **Add to calendar**. The test
+   verifies authorization, the Google Calendar request, the success
+   alert, and the absence of RSVP inserts/deletes.
+3. Failure tests verify that attendance remains saved and that a
+   visible retry action can succeed after an HTTP/network error.
+
+These tests assert accessible roles, button names, displayed alerts,
+and user actions rather than component implementation details.
+
+## Installation and running the full suite
+
+From the repository root:
+
+```bash
+npm install
+python -m pip install -r packages/sidequest-backend/requirements.txt
+npm test
+```
+
+The root `npm test` command runs the frontend, backend, and
+database suites. It can be run with individual suites:
+
+```bash
+npm run test:frontend
+npm run test:backend
+npm run test:database
+npm test --workspace=sidequest-frontend
+```
+
+## External services and known limitations
+
+No live external service or real credentials are required for the
+automated suite. Supabase and Google are mocked in frontend/backend
+tests, backend HTTP calls are handled by `httpx.MockTransport`, and
+database tests run in PGlite. The backend suite requires Python
+dependencies from `requirements.txt`.
+
+Browser automation is not used; React component tests cover the
+available UI behavior in jsdom. Future work could add Playwright
+tests against a deployed environment and expand the placeholder
+community/search/message screens.
 

@@ -214,9 +214,27 @@ npm run dev --workspace=sidequest-frontend   # Start Vite
 npm run dev                                  # Start FastAPI (activate .venv first)
 npm run lint --workspace=sidequest-frontend  # Lint frontend
 npm run build --workspace=sidequest-frontend # Type-check and build frontend
-npm run test:auth --workspace=sidequest-frontend # Run auth tests
+npm test                                     # Run frontend, backend, and database tests
+npm run test:frontend                        # Run frontend tests only
+npm run test:backend                         # Run backend Python tests only
+npm run test:database                        # Run Supabase migration/database tests only
 npm run format                               # Format supported repository files
 ```
+
+## Automated testing
+
+The TE 7 testing tools and TDD record are documented in
+[packages/sidequest-frontend/tests/TESTING.md](./packages/sidequest-frontend/tests/TESTING.md).
+The suite uses Vitest and React Testing Library for frontend/unit/UI
+tests, FastAPI `TestClient` and `unittest` for backend system tests,
+and Node's test runner with PGlite for database tests.
+
+Install dependencies with `npm install` and
+`python -m pip install -r packages/sidequest-backend/requirements.txt`,
+then run `npm test` from the repository root. Frontend tests use
+mocked Supabase and Google services; no live external accounts are
+needed. Backend tests use mocked HTTP/Supabase responses, and
+database tests create isolated PGlite databases.
 
 ## Current limitations
 

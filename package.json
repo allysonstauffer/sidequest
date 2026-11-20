@@ -15,6 +15,9 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "test": "npm run test:frontend && npm run test:backend && npm run test:database",
+    "test:frontend": "npm test --workspace=sidequest-frontend",
+    "test:backend": "python -m unittest discover -s packages/sidequest-backend -p \"test_*.py\"",
     "test:database": "node --test supabase/tests/*.test.mjs",
     "dev": "fastapi dev packages/sidequest-backend/post_handling.py",
     "format": "prettier --write './**/*.{js,jsx,ts,tsx,css,md,json}' --config ./.prettierrc"
