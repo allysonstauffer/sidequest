@@ -175,6 +175,12 @@
   gap: 10px;
 }
 
+.sidequest-rsvp-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
 .sidequest-event-card h3 {
   margin: 0 0 8px;
   color: #f0e9f5;

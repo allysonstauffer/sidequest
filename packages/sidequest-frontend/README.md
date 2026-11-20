@@ -1,5 +1,30 @@
 # React + TypeScript + Vite
 
+## Testing ticket #69
+
+The assignment's TDD process and unit-test requirements are documented
+in [tests/TESTING.md](tests/TESTING.md), including observed Red/Green results,
+production changes, refactoring, and a mapping of six isolated unit
+tests across community validation and activity recommendations. The 15
+calendar component tests and six additional calendar unit tests are listed
+separately from the Part II tests.
+
+Run these commands from the repository root:
+
+```bash
+# All frontend tests
+npm test --workspace=sidequest-frontend
+
+# Type-check application, tooling, and test files
+npm run typecheck --workspace=sidequest-frontend
+
+# Six isolated unit tests for validation and recommendations (Part II)
+npm run test:unit:te7 --workspace=sidequest-frontend
+
+# RSVP/calendar component tests used for TDD (Part I)
+npm run test:events --workspace=sidequest-frontend
+```
+
 This template provides a minimal setup to get React working in
 Vite with HMR and some ESLint rules.
 
@@ -104,7 +129,7 @@ Authentication → URL Configuration → Redirect URLs (and the
 production equivalent when deployed). The Google client secret
 must stay in Supabase, not in a `VITE_` variable. The existing
 `VITE_GOOGLE_OAUTH_ID` is only for the separate Calendar permission
-prompt after RSVP.
+prompt when an attendee chooses **Add to calendar** after RSVP.
 
 After Google sign-in, users without `display_name` choose a unique
 Sidequest username, then complete the existing interests step.
@@ -451,9 +476,15 @@ To add an RSVP to the attendee's Google Calendar, enable the Google
 Calendar API, create a Web application OAuth client in Google Cloud,
 and add the frontend origin to its authorized JavaScript origins.
 Set `VITE_GOOGLE_OAUTH_ID` to that public client ID in the frontend
-`.env` file. RSVPs are saved even if the attendee declines Google
-Calendar access or the Calendar request fails. Cancelling an RSVP
-currently does not remove a previously created Google Calendar event.
+`.env` file. **RSVP** saves attendance without requesting Google access.
+Afterward, attendees may choose **Add to calendar**. If authorization or
+calendar creation fails, attendance remains saved and the same button
+can be used to retry. While the calendar action is pending, its button
+shows **Adding…** and RSVP changes are disabled. A successful addition
+shows **Added to calendar**, disabled for the rest of the current view.
+This confirmation is local to the view and is not persisted across reloads.
+Cancelling an RSVP currently does not remove a previously created Google
+Calendar event.
 
 Apply
 [`202610280003_sidequest_events.sql`](../../supabase/migrations/202610280003_sidequest_events.sql)

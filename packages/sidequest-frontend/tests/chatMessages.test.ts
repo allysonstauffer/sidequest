@@ -23,7 +23,12 @@ function fixture({
   const client = {
     auth: {
       getSession: async () => ({
-        data: { session: { user: { id: userId } } },
+        data: {
+          session: {
+            user: { id: userId },
+            access_token: "synthetic-token"
+          }
+        },
         error: null
       })
     },
@@ -31,18 +36,6 @@ function fixture({
       from: (bucket: string) => {
         assert.equal(bucket, "dm-images");
         return {
-          upload: async (
-            path: string,
-            file: File,
-            options: { contentType: string; upsert: boolean }
-          ) => {
-            uploads.push(path);
-            assert.equal(options.contentType, file.type);
-            assert.equal(options.upsert, false);
-            return {
-              error: uploadFails ? { message: "offline" } : null
-            };
-          },
           remove: async (paths: string[]) => {
             removed.push(...paths);
             return { error: null };
@@ -76,7 +69,26 @@ function fixture({
       return query;
     }
   } as unknown as Parameters<typeof sendChatMessage>[0];
-  return { client, uploads, removed, inserts };
+  const uploadPhoto = async (
+    roomId: string,
+    file: File,
+    token: string
+  ) => {
+    assert.equal(token, "synthetic-token");
+    assert.equal(file.type, "image/png");
+    if (uploadFails) throw new Error("offline");
+    const path = `${roomId}/${userId}/${crypto.randomUUID()}.jpg`;
+    uploads.push(path);
+    return { path };
+  };
+  return {
+    client,
+    uploads,
+    removed,
+    inserts,
+    send: (input: Parameters<typeof sendChatMessage>[1]) =>
+      sendChatMessage(client, input, uploadPhoto)
+  };
 }
 const photo = () =>
   new File(["synthetic image"], "photo.png", {
@@ -85,13 +97,13 @@ const photo = () =>
 
 test("image-only messages upload privately, preserve a storage path, and confirm the saved message", async () => {
   const f = fixture();
-  const message = await sendChatMessage(f.client, {
+  const message = await f.send({
     roomId: "chat",
     userId: "viewer",
     text: "",
     image: photo()
   });
-  assert.match(f.uploads[0], /^chat\/viewer\/[a-f0-9-]+\.png$/);
+  assert.match(f.uploads[0], /^chat\/viewer\/[a-f0-9-]+\.jpg$/);
   assert.equal(message.id, "1");
   assert.equal(message.text, "Photo");
   assert.equal(message.image_path, f.uploads[0]);
@@ -101,7 +113,7 @@ test("image-only messages upload privately, preserve a storage path, and confirm
 test("captions and existing text-only messages both remain supported", async () => {
   for (const image of [photo(), null]) {
     const f = fixture();
-    const message = await sendChatMessage(f.client, {
+    const message = await f.send({
       roomId: "chat",
       userId: "viewer",
       text: "  A caption  ",
@@ -125,7 +137,7 @@ test("invalid files and changed accounts cannot upload or insert a message", asy
     assert.throws(() => validateMessageImage(file));
   const f = fixture({ userId: "another-user" });
   await assert.rejects(
-    sendChatMessage(f.client, {
+    f.send({
       roomId: "chat",
       userId: "viewer",
       text: "",
@@ -140,7 +152,7 @@ test("invalid files and changed accounts cannot upload or insert a message", asy
 test("failed uploads never create a message; definite save failures clean up unused uploads", async () => {
   const upload = fixture({ uploadFails: true });
   await assert.rejects(
-    sendChatMessage(upload.client, {
+    upload.send({
       roomId: "chat",
       userId: "viewer",
       text: "",
@@ -151,7 +163,7 @@ test("failed uploads never create a message; definite save failures clean up unu
   assert.deepEqual(upload.inserts, []);
   const save = fixture({ saveError: "42501" });
   await assert.rejects(
-    sendChatMessage(save.client, {
+    save.send({
       roomId: "chat",
       userId: "viewer",
       text: "",
@@ -167,7 +179,7 @@ test("lost responses recover a committed image message without deleting its imag
     saveError: "FETCH_ERROR",
     recovered: true
   });
-  const message = await sendChatMessage(f.client, {
+  const message = await f.send({
     roomId: "chat",
     userId: "viewer",
     text: "hello",
@@ -177,7 +189,7 @@ test("lost responses recover a committed image message without deleting its imag
   assert.deepEqual(f.removed, []);
   const uncertain = fixture({ saveError: "FETCH_ERROR" });
   await assert.rejects(
-    sendChatMessage(uncertain.client, {
+    uncertain.send({
       roomId: "chat",
       userId: "viewer",
       text: "",

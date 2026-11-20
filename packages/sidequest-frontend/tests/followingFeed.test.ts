@@ -120,7 +120,11 @@ function fixture({
             : "community_id";
           const filter = url.searchParams.get(column);
           assert.ok(
-            filter?.startsWith("in.("),
+            filter,
+            "Project queries must include a source filter"
+          );
+          assert.ok(
+            filter.startsWith("in.("),
             "Project queries must be restricted to followed creators or joined communities"
           );
           const ids = filter

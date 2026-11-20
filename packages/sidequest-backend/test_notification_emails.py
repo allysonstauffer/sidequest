@@ -143,7 +143,8 @@ class TemplateTests(unittest.TestCase):
         self.assertIsNone(message["Bcc"])
         html = message.get_body(preferencelist=("html",)).get_content()
         self.assertNotIn("<script>", html)
-        self.assertNotIn("<img", html)
+        self.assertNotIn('<img src=x onerror="attack()">', html)
+        self.assertIn('&lt;img src=x onerror=&quot;attack()&quot;&gt;', html)
         self.assertIn("&lt;script&gt;", html)
 
     def test_payload_cannot_add_recipients_or_inject_links(self):
@@ -198,7 +199,9 @@ class DeliveryTests(unittest.TestCase):
                                             "permanent_bounces": []}}
             send_notification_email(message, settings)
             payload = client.post.call_args.kwargs["json"]
-            self.assertEqual(payload["from"], ENV["NOTIFICATION_EMAIL_FROM"])
+            self.assertEqual(payload["from"], {
+                "address": ENV["NOTIFICATION_EMAIL_FROM"], "name": "SideQuest",
+            })
             self.assertEqual(payload["to"], JOB["recipient_email"])
             self.assertIn("Paper garden", payload["text"])
             self.assertIn("<h1>SideQuest</h1>", payload["html"])

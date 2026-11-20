@@ -8,7 +8,7 @@ from unittest.mock import patch
 import httpx
 from fastapi.testclient import TestClient
 from PIL import Image
-from supabase import create_client
+from supabase import ClientOptions, create_client
 
 import post_handling as upload
 
@@ -27,13 +27,15 @@ class PostingTests(unittest.TestCase):
         self.image = image.getvalue()
         self.env = patch.dict(
             os.environ,
-            {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": self.key},
+            {"SUPABASE_URL": "https://example.supabase.co", "SUPABASE_KEY": self.key,
+             "SUPABASE_SECRET_KEY": "sb_secret_synthetic-storage-key"},
             clear=True,
         )
         self.env.start()
         self.addCleanup(self.env.stop)
 
-        def client_factory(url, key, options):
+        def client_factory(url, key, options=None):
+            options = options or ClientOptions()
             transport = httpx.MockTransport(self.handle_request)
             options.httpx_client = httpx.Client(transport=transport)
             self.addCleanup(options.httpx_client.close)
@@ -47,11 +49,19 @@ class PostingTests(unittest.TestCase):
 
     def handle_request(self, request):
         self.requests.append(request)
-        # Exercise the real SDK: every outgoing request must retain user auth,
-        # including cleanup and deletion, while the API key stays publishable.
-        self.assertEqual(request.headers["Authorization"], f"Bearer {self.token}")
-        self.assertEqual(request.headers["apikey"], self.key)
         path = request.url.path
+        # Database/auth requests retain user identity. Storage uses the separate
+        # trusted client added on main, after the route's ownership checks.
+        if path.startswith("/storage/v1/"):
+            key = os.environ["SUPABASE_SECRET_KEY"]
+            self.assertEqual(request.headers["Authorization"], f"Bearer {key}")
+            self.assertEqual(request.headers["apikey"], key)
+        else:
+            self.assertEqual(request.headers["Authorization"], f"Bearer {self.token}")
+            self.assertEqual(request.headers["apikey"], self.key)
+        if path == "/rest/v1/rpc/storage_upload_within_quota":
+            self.assertEqual(json.loads(request.content), {"target_bucket": "project-media"})
+            return httpx.Response(200, json=True)
         if path == "/auth/v1/user":
             if self.failure == "auth":
                 return httpx.Response(401, json={"message": "Invalid JWT"})
@@ -139,7 +149,9 @@ class PostingTests(unittest.TestCase):
         )
 
     def writes(self):
-        return [request for request in self.requests if request.method != "GET"]
+        # The read-only quota check uses POST but does not upload or write a post.
+        return [request for request in self.requests if request.method != "GET"
+                and request.url.path != "/rest/v1/rpc/storage_upload_within_quota"]
 
     def test_publish_preserves_user_auth_with_publishable_key(self):
         response = self.publish()
@@ -245,7 +257,8 @@ class PostingTests(unittest.TestCase):
         response = self.publish()
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["project"]["author_id"], self.other_user_id)
-        self.assertEqual(self.factory.call_count, 2)
+        # Each post has its own user client and trusted storage client.
+        self.assertEqual(self.factory.call_count, 4)
 
     def test_missing_authentication_does_not_contact_supabase(self):
         self.assertEqual(self.publish(headers={}).status_code, 401)
@@ -276,6 +289,7 @@ class PostingTests(unittest.TestCase):
 
     def test_missing_configuration_has_actionable_error(self):
         os.environ.pop("SUPABASE_KEY")
+        os.environ.pop("SUPABASE_SECRET_KEY")
         response = self.publish()
         self.assertEqual(response.status_code, 503)
         self.assertIn("not configured", response.json()["detail"])

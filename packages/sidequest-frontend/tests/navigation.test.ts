@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createElement } from "react";
+import { createElement, type ComponentType } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import react from "@vitejs/plugin-react";
@@ -27,7 +28,7 @@ test("navigation links and active states follow the current route", async () => 
     );
     const { AuthContext } = await server.ssrLoadModule("/src/auth/useAuth.ts");
 
-    function render(component, path, session = null) {
+    function render(component: ComponentType, path: string, session: Partial<Session> | null = null) {
       return renderToStaticMarkup(
         createElement(
           MemoryRouter,
@@ -41,7 +42,7 @@ test("navigation links and active states follow the current route", async () => 
       );
     }
 
-    function links(markup) {
+    function links(markup: string) {
       return [...markup.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/g)].map(
         ([, attributes, content]) => ({
           href: attributes.match(/href="([^"]+)"/)?.[1],

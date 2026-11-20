@@ -1,6 +1,13 @@
 # TDD:
 
+The optional RSVP/calendar feature and its Red–Green–Refactor process are
+covered in the [frontend testing document](../packages/sidequest-frontend/tests/TESTING.md#part-i-test-driven-development).
+
 # Unit Tests:
+
+The six Part II unit tests cover community validation and activity
+recommendations. Test descriptions and commands are in the
+[unit testing section](../packages/sidequest-frontend/tests/TESTING.md#part-ii-unit-testing).
 
 # System Tests:
 Used FastAPI's TestClient as well as Python's unittest libraries to do the backend system tests.
