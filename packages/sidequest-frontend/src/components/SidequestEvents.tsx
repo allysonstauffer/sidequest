@@ -1,6 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import { supabase } from "../lib/supabase";
+import {
+  addToGoogleCalendar,
+  requestGoogleCalendarToken
+} from "../lib/googleCalendar";
 import { SKILL_LEVELS } from "../preferences/model";
 import {
   useHobbyCategories,
@@ -27,93 +31,6 @@ type SidequestEventsProps = {
   creationOnly?: boolean;
   title: string;
 };
-
-type GoogleTokenResponse = {
-  access_token?: string;
-  error?: string;
-  scope?: string;
-};
-
-type GoogleOAuth = {
-  accounts: {
-    oauth2: {
-      initTokenClient: (options: {
-        client_id: string;
-        scope: string;
-        callback: (response: GoogleTokenResponse) => void;
-        error_callback: (error: { type: string }) => void;
-      }) => { requestAccessToken: () => void };
-    };
-  };
-};
-
-const CALENDAR_SCOPE =
-  "https://www.googleapis.com/auth/calendar.events";
-
-function requestGoogleCalendarToken(): Promise<string> {
-  const clientId = import.meta.env.VITE_GOOGLE_OAUTH_ID;
-  if (!clientId) {
-    return Promise.reject(
-      new Error("Google Calendar is not configured.")
-    );
-  }
-
-  const google = (window as Window & { google?: GoogleOAuth }).google;
-  if (!google?.accounts?.oauth2) {
-    return Promise.reject(
-      new Error("Google Calendar sign-in did not load. Please try again.")
-    );
-  }
-
-  return new Promise((resolve, reject) => {
-    const client = google.accounts.oauth2.initTokenClient({
-      client_id: clientId,
-      scope: CALENDAR_SCOPE,
-      callback: (response) => {
-        if (
-          response.error ||
-          !response.access_token ||
-          !response.scope?.split(" ").includes(CALENDAR_SCOPE)
-        ) {
-          reject(new Error("Google Calendar access was not granted."));
-          return;
-        }
-        resolve(response.access_token);
-      },
-      error_callback: () => {
-        reject(new Error("Google Calendar sign-in was closed."));
-      }
-    });
-    client.requestAccessToken();
-  });
-}
-
-async function addToGoogleCalendar(
-  event: SidequestEvent,
-  accessToken: string
-): Promise<void> {
-  const response = await fetch(
-    "https://www.googleapis.com/calendar/v3/calendars/primary/events",
-    {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
-        summary: event.title,
-        description: event.description,
-        location: event.location,
-        start: { dateTime: event.starts_at },
-        end: { dateTime: event.ends_at }
-      })
-    }
-  );
-
-  if (!response.ok) {
-    throw new Error("Could not add the event to Google Calendar.");
-  }
-}
 
 function parseSidequestEvent(
   value: unknown
@@ -202,6 +119,13 @@ export default function SidequestEvents({
   const [rsvpInProgress, setRsvpInProgress] = useState<
     string | null
   >(null);
+
+  const [calendarInProgress, setCalendarInProgress] = useState<
+    string | null
+  >(null);
+  const [calendarAddedIds, setCalendarAddedIds] = useState<
+    Set<string>
+  >(new Set());
 
   useEffect(() => {
     const timeout = window.setTimeout(
@@ -427,16 +351,9 @@ export default function SidequestEvents({
   }
 
   async function toggleRsvp(sidequestId: string) {
-    if (rsvpInProgress) return;
+    if (rsvpInProgress || calendarInProgress) return;
+
     const cancelling = rsvpIds.has(sidequestId);
-    const sidequest = events.find((event) => event.id === sidequestId);
-    // Start Google's popup directly from the click, before the database request.
-    const calendarToken = cancelling
-      ? null
-      : requestGoogleCalendarToken().then(
-          (token) => ({ token }),
-          (error: unknown) => ({ error })
-        );
     setRsvpInProgress(sidequestId);
     setNotice("");
 
@@ -447,12 +364,16 @@ export default function SidequestEvents({
           .delete()
           .eq("sidequest_id", sidequestId)
           .eq("attendee_id", viewerId);
+
         if (error) throw new Error(error.message);
+
         setRsvpIds((current) => {
           const next = new Set(current);
           next.delete(sidequestId);
           return next;
         });
+
+        setNotice("RSVP cancelled.");
       } else {
         const { error } = await supabase
           .from("sidequest_rsvps")
@@ -460,27 +381,14 @@ export default function SidequestEvents({
             sidequest_id: sidequestId,
             attendee_id: viewerId
           });
+
         if (error) throw new Error(error.message);
+
         setRsvpIds((current) =>
           new Set(current).add(sidequestId)
         );
-        if (calendarToken && sidequest) {
-          const result = await calendarToken;
-          if ("error" in result) {
-            setNotice(
-              `RSVP saved, but ${result.error instanceof Error ? result.error.message : "Google Calendar was unavailable."}`
-            );
-          } else {
-            try {
-              await addToGoogleCalendar(sidequest, result.token);
-              setNotice("RSVP saved and added to Google Calendar.");
-            } catch (calendarError) {
-              setNotice(
-                `RSVP saved, but ${calendarError instanceof Error ? calendarError.message : "Google Calendar was unavailable."}`
-              );
-            }
-          }
-        }
+
+        setNotice("RSVP saved.");
       }
     } catch (error) {
       setNotice(
@@ -490,6 +398,33 @@ export default function SidequestEvents({
       );
     } finally {
       setRsvpInProgress(null);
+    }
+  }
+
+  async function handleAddToCalendar(event: SidequestEvent) {
+    if (
+      calendarInProgress ||
+      rsvpInProgress ||
+      !rsvpIds.has(event.id) ||
+      calendarAddedIds.has(event.id)
+    )
+      return;
+    setCalendarInProgress(event.id);
+    setNotice("");
+    try {
+      // Request the popup from this explicit click, before awaiting any network work.
+      const token = await requestGoogleCalendarToken();
+      await addToGoogleCalendar(event, token);
+      setCalendarAddedIds((current) =>
+        new Set(current).add(event.id)
+      );
+      setNotice("Added to Google Calendar.");
+    } catch (error) {
+      setNotice(
+        `Your RSVP is still saved. ${error instanceof Error ? error.message : "Google Calendar was unavailable."} Please try Add to calendar again.`
+      );
+    } finally {
+      setCalendarInProgress(null);
     }
   }
 
@@ -924,16 +859,42 @@ export default function SidequestEvents({
                 </form>
               )}
               {hostId !== viewerId ? (
-                <button
-                  type="button"
-                  disabled={rsvpInProgress !== null}
-                  onClick={() => void toggleRsvp(event.id)}>
-                  {rsvpInProgress === event.id
-                    ? "Saving…"
-                    : rsvpIds.has(event.id)
-                      ? "Cancel RSVP"
-                      : "RSVP"}
-                </button>
+                <div className="sidequest-rsvp-actions">
+                  <button
+                    type="button"
+                    disabled={
+                      rsvpInProgress !== null ||
+                      calendarInProgress !== null
+                    }
+                    onClick={() =>
+                      void toggleRsvp(event.id)
+                    }>
+                    {rsvpInProgress === event.id
+                      ? "Saving…"
+                      : rsvpIds.has(event.id)
+                        ? "Cancel RSVP"
+                        : "RSVP"}
+                  </button>
+
+                  {rsvpIds.has(event.id) ? (
+                    <button
+                      type="button"
+                      disabled={
+                        calendarInProgress !== null ||
+                        rsvpInProgress !== null ||
+                        calendarAddedIds.has(event.id)
+                      }
+                      onClick={() =>
+                        void handleAddToCalendar(event)
+                      }>
+                      {calendarInProgress === event.id
+                        ? "Adding…"
+                        : calendarAddedIds.has(event.id)
+                          ? "Added to calendar"
+                          : "Add to calendar"}
+                    </button>
+                  ) : null}
+                </div>
               ) : null}
             </article>
           ))}
