@@ -256,12 +256,6 @@ npm run lint --workspace=sidequest-frontend
 
 ## Results
 
-There are **21 tests for the two assignment parts**: 15
-component tests used for Part I and six unit tests for Part II.
-Each of the two Part II functions has three tests. The totals
-below also include the project's existing tests and extra
-calendar coverage.
-
 | Tests                                             | Passing |
 | ------------------------------------------------- | ------- |
 | Existing and merged frontend tests                | 55      |
@@ -273,51 +267,3 @@ calendar coverage.
 | Database tests                                    | 12      |
 | **Project total**                                 | **166** |
 
-These totals include the comments, cohost, edit-access, and
-navigation changes merged from the remote branch. The calendar
-component tests now supply the auth context and empty
-cohost/edit-access query results needed by the combined
-component. The saved-RSVP test also checks that Comments and Add
-to calendar are both available. The six Part II tests are
-unchanged.
-
-Type checking, lint, and the production build also passed. Vite
-still reports a non-blocking warning about a bundle larger than
-500 kB.
-
-During the November 20 checks, the test files turned out to be
-outside the TypeScript project. Adding `tsconfig.tests.json`
-exposed a nullable `filter` value in `followingFeed.test.ts`. An
-assertion now checks that the filter exists before the test
-reads it. The normal frontend test command now runs type
-checking too, so test type errors won't be missed just because
-the tests execute successfully.
-
-## What still needs a manual check
-
-The automated tests mock Google. The live authorization popup
-and calendar account still need a manual check: RSVP should save
-without a popup, Add to calendar should open authorization, and
-declining access should leave the RSVP saved with the option to
-try again.
-
-The successful-addition marker only lasts for the current view;
-a page reload doesn't remember it. Cancelling an RSVP also
-doesn't delete an existing Google event. If a connection drops
-after Google has already saved the event, a retry could create a
-duplicate. Persistent calendar tracking isn't part of this
-ticket.
-
-## Check before merging to main
-
-The latest main branch also included the server-side image upload flow,
-upload quota checks, email logo, and signed-out system tests. The upload
-and email test fixtures were updated to match those interfaces. The chat
-tests now inject the image uploader and check the normalized JPG path.
-Database requests still assert the user's JWT, and storage requests check
-the separate trusted storage client.
-
-The Vite config referenced a dev-server plugin that wasn't in the repository.
-It now uses Vite's built-in strict file restrictions and sensitive-file deny
-list. The final combined checks passed: 82 frontend tests, 72 backend tests,
-12 database tests, type checking, lint, and the production build.
