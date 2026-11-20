@@ -3,7 +3,7 @@
 ## Testing ticket #69
 
 The assignment's TDD process and unit-test requirements are documented
-in [tests/te7.md](tests/te7.md), including observed Red/Green results,
+in [tests/TESTING.md](tests/TESTING.md), including observed Red/Green results,
 production changes, refactoring, and a mapping of six isolated unit
 tests across community validation and activity recommendations. The 15
 calendar component tests and six additional calendar unit tests are listed
